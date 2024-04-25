@@ -3,7 +3,7 @@ Small C++ project to represent multivariable polynomials and perform computation
 
 Represent polynomials (i.e. symbolic expressions) with SymExp objects, which are a vector of Product objects. Each Product object contains ids and powers to efficiently represent factors of the product. 
 
-# Current Features:
+## Current Features:
 - multiplying, adding, and subtraction expressions with each other. 
 
 - Substituting variables with other SymExps using the SymExpTable class, which can be used to evaluate the symbolic expressions like a function. Also supports printing out expressions by converting symbol ids to text, converting back into SymExp is planned, but low priority.
