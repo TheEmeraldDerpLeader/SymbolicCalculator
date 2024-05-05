@@ -18,5 +18,7 @@ Represent polynomials (i.e. symbolic expressions) with SymExp objects, which are
 
 My current focus is on flattening SymExp into a class that stores all data in a single region of memory. Currently SymExp uses vectors of vectors, throwing in another vector when you need multiple SymExps to represent a system. All of this means a substantial amount of computation time for evaluation is spent on memory calls rather than computation, which moving everything into a single dynamic array should hopefully reduce, allowing for faster generation of fractals. After this, I plan to port the code over to OpenCL, allowing for SymExp evaluation on GPUs. To make this simple, the FlatSymExp class will be designed in a way that would easily port over to C.
 
-[Fractal comparable to Newton's Fractal](https://raw.githubusercontent.com/TheEmeraldDerpLeader/SymbolicCalculator/main/Images/Fractal4DegTwoVar.png)
+
+<img src="Images/Fractal4DegTwoVar.png" alt="Fractal comparable to Newton's Fractal" width="400" height="400">
+
 Example of a fractal resulting from the convergence of generalized Newton's Method applied to a a system of two random two variable, 4th order polynomials
