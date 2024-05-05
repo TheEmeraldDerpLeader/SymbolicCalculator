@@ -510,7 +510,7 @@ std::vector<int> SymExp::GetIds() const
         for (int j = 0; j < termIds.size(); j++)
         {
             int ind = BinSearch(ids, termIds[j]);
-            if (ids.size() == ind || ids[ind] != ids[j])
+            if (ids.size() == ind || ids[ind] != termIds[j])
                 ids.insert(ids.begin()+ind, termIds[j]);
         }
     }
@@ -622,7 +622,7 @@ std::vector<int> GetIds(const std::vector<SymExp>& exps)
             for (int j = 0; j < termIds.size(); j++)
             {
                 int ind = BinSearch(ids, termIds[j]);
-                if (ids.size() == ind || ids[ind] != ids[j])
+                if (ids.size() == ind || ids[ind] != termIds[j])
                     ids.insert(ids.begin()+ind, termIds[j]);
             }
         }
@@ -714,7 +714,7 @@ std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, con
         count++;
     }
 
-    return mov(testValue);
+    return testValue;
 }
 
 std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<int> valIds, const std::vector<float> initial, const float threshold)
@@ -758,7 +758,7 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
         count++;
     }
 
-    return mov(testValue);
+    return testValue;
 }
 
 //name technically describes how function works, but not it's intent lol

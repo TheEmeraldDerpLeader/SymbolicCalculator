@@ -150,4 +150,7 @@ public:
 };
 
 std::string FloatToString(const float& floatRef);
+
+int BinSearch(const std::vector<int>& vec, int val);
+int BinSearch(const std::vector<int>& vec, int lower, int upper, int val);
 #undef float

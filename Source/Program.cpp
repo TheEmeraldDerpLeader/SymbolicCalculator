@@ -1,5 +1,6 @@
 
 #include "SymExp.hpp"
+#include "FlatSymExp.hpp"
 #include "Helpers.hpp"
 #include "SFMLRenderer.hpp"
 
@@ -16,6 +17,9 @@
 //Flatten SymExp: ProductRef, make SymExp some (one?) vectors for sum of products
 //Port evaluation, gradient, and NM to OpenCL
 //Figure out makefile (maybe use non-VS sfml libs?)
+
+//PLEASE UNCONSTIFY EVERYTHING I BEG YOU
+
 std::vector<SymExp> GenRule(std::vector<SymExp>& prodExps, int p, int i1, int i2, int i3)
 {
 	std::vector<SymExp> resL; for (int i = 0; i < p+1; i++) resL.push_back(SymExp());
@@ -325,6 +329,19 @@ int main()
 		}
 	}
 
+	std::vector<SymExp> testM;
+
+	testM.push_back(SymExp()); testM[0].scalar = 1;
+	testM[0].terms.push_back(Product(2, 3, 4));
+	testM.push_back(GenRandomPoly(3,3,3));
+	FlatSymExp flatTest = FlatSymExp(testM);
+
+	std::vector<int> flatIds; flatIds.push_back(0); flatIds.push_back(1); flatIds.push_back(2); flatIds.push_back(3);
+	std::vector<float> flatCoords; flatCoords.push_back(1); flatCoords.push_back(2); flatCoords.push_back(3); flatCoords.push_back(4);
+
+	std::vector<float> f1 = SclEvalVec(testM, flatIds, flatCoords);
+	std::vector<float> f2 = flatTest.SclEval(flatIds, flatCoords);
+
 	SFMLRendererAPI sfmlapi;
 	sfmlapi.SetTex(tex, 16, 16);
 
@@ -340,6 +357,9 @@ int main()
 	std::vector<float> roots[2];
 	int* rootAssoc = new int[800*800];
 	unsigned char* rootTex = new unsigned char[800*800*4];
+
+	std::cout << rendExp[0].ToString() << '\n';
+	std::cout << rendExp[1].ToString() << '\n';
 
 	for (int x = 0; x < 800; x++)
 	{
