@@ -12,12 +12,10 @@ void pW(unsigned char*& p, int i) { *(int*)p = i; p += soi; }
 void pW(unsigned char*& p, float f) { *(float*)p = f; p += sof; }
 void pW(unsigned char*& p, size_t t) { pW(p, (int)t); }
 int& iR(unsigned char*& p) { p += soi; return *(int*)(p-soi); }
+int& iRAt(unsigned char* p) { return *(int*)(p); }
 float& fR(unsigned char*& p) { p += sof; return *(float*)(p-sof); }
-const int& iR(const unsigned char*& p) { p += soi; return *(int*)(p-soi); }
-const float& fR(const unsigned char*& p) { p += sof; return *(float*)(p-sof); }
-const int& iR(const unsigned char* const & p) { return *(int*)(p); } //very cool, 4 function defs bc we want consts
 
-FlatSymExp::FlatSymExp(const SymExp& exp)
+FlatSymExp::FlatSymExp(SymExp& exp)
 {
 	unsigned char* bufIndex;
 
@@ -49,7 +47,7 @@ FlatSymExp::FlatSymExp(const SymExp& exp)
 
 }
 
-FlatSymExp::FlatSymExp(const std::vector<SymExp>& exps)
+FlatSymExp::FlatSymExp(std::vector<SymExp>& exps)
 {
 	Reserve(1024);
 
@@ -68,7 +66,7 @@ FlatSymExp::FlatSymExp(const std::vector<SymExp>& exps)
 
 	for (int e = 0; e < exps.size(); e++)
 	{
-		const SymExp& exp = exps[e];
+		SymExp& exp = exps[e];
 
 		expIndex(e) = size;
 		bufIndex = Extend(sof+soi); //scalar, number of terms
@@ -135,16 +133,6 @@ float& FlatSymExp::fAt(int i)
 	return *(float*)(data+i);
 }
 
-const int& FlatSymExp::iAtC(int i) const
-{
-	return *(int*)(data+i);
-}
-
-const float& FlatSymExp::fAtC(int i) const
-{
-	return *(float*)(data+i);
-}
-
 void FlatSymExp::Reserve(int i)
 {
 	if (i <= capacity)
@@ -177,19 +165,19 @@ unsigned char* FlatSymExp::Extend(int i)
 	return data+s;
 }
 
-int FlatSymExp::idCount() const
+int FlatSymExp::idCount()
 {
-	return iAtC(0);
+	return iAt(0);
 }
 
-int FlatSymExp::idKey(int no) const
+int FlatSymExp::idKey(int no)
 {
-	return iAtC(soi*(1+no));
+	return iAt(soi*(1+no));
 }
 
-int FlatSymExp::expCount() const
+int FlatSymExp::expCount()
 {
-	return iAtC(soi*(1+iAtC(0)));
+	return iAt(soi*(1+iAt(0)));
 }
 
 int& FlatSymExp::expIndex(int exp)
@@ -199,14 +187,7 @@ int& FlatSymExp::expIndex(int exp)
 	return iAt(index + (soi*exp));
 }
 
-const int& FlatSymExp::expIndexC(int exp) const
-{
-	int index = 0;
-	index += soi*(1+iAtC(index)) + soi;
-	return iAtC(index + (soi*exp));
-}
-
-std::vector<float> FlatSymExp::SclEval(const std::vector<int>& valIds, const std::vector<float>& values) const
+std::vector<float> FlatSymExp::SclEval(std::vector<int>& valIds, std::vector<float>& values)
 {
 	std::vector<float> hold;
 	std::vector<float> coords;
@@ -225,7 +206,7 @@ std::vector<float> FlatSymExp::SclEval(const std::vector<int>& valIds, const std
 			coords[i] = values[index];
 	}
 
-	unsigned char* bufIndex = data+expIndexC(0);
+	unsigned char* bufIndex = data+expIndex(0);
 
 	for (int i = 0; i < expC; i++)
 	{
@@ -252,14 +233,14 @@ std::vector<float> FlatSymExp::SclEval(const std::vector<int>& valIds, const std
 	return hold;
 }
 
-FlatSymExp FlatSymExp::Gradient() const
+FlatSymExp FlatSymExp::Gradient()
 {
 	int idC = idCount();
 	int expC = expCount();
 	FlatSymExp f;
-	f.Reserve(expIndexC(0) + idC*( size-expIndexC(0) ));
+	f.Reserve(expIndex(0) + idC*( size-expIndex(0) ));
 
-	const unsigned char* thisIndex = data;
+	unsigned char* thisIndex = data;
 	unsigned char* bufIndex;
 
 	//Write ids
@@ -280,7 +261,7 @@ FlatSymExp FlatSymExp::Gradient() const
 		for (int i = 0; i < expC; i++)
 		{
 			//set thisIndex to start of SymExp
-			thisIndex = data+expIndexC(i)+sof;
+			thisIndex = data+expIndex(i)+sof;
 			int prodC = iR(thisIndex);
 
 
@@ -306,9 +287,9 @@ FlatSymExp FlatSymExp::Gradient() const
 				//search factors
 				int jIdPow = 0;
 				for (int f = 0; f < facC; f++)
-					if (iR(thisIndex+f*(2*soi)) == j)
+					if (iRAt(thisIndex+f*(2*soi)) == j)
 					{
-						jIdPow = iR(thisIndex+soi+f*(2*soi));
+						jIdPow = iRAt(thisIndex+soi+f*(2*soi));
 						break;
 					}
 				

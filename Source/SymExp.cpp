@@ -25,7 +25,7 @@ thread_local std::vector<Product> _prodGrad;
 thread_local std::vector<SymExp> _expGrad;
 
 
-int BinSearch(const std::vector<int>& vec, int val) //value at index is greater than or equal to val, can return index of vec.size()
+int BinSearch(std::vector<int>& vec, int val) //value at index is greater than or equal to val, can return index of vec.size()
 {
     int upper = vec.size();
     int lower = 0;
@@ -50,7 +50,7 @@ int BinSearch(const std::vector<int>& vec, int val) //value at index is greater 
     }
     return ind;
 }
-int BinSearch(const std::vector<int>& vec, int lower, int upper, int val)
+int BinSearch(std::vector<int>& vec, int lower, int upper, int val)
 {
     int ind = upper/2;
     while (upper != lower)
@@ -111,7 +111,7 @@ Product& Product::MultId(int id, int pow)
     return *this;
 }
 
-SymExp Product::operator+(const Product& prod)
+SymExp Product::operator+(Product& prod)
 {
     SymExp hold;
     hold.terms.push_back(*this);
@@ -119,7 +119,12 @@ SymExp Product::operator+(const Product& prod)
     return hold;
 }
 
-SymExp Product::operator-(const Product& prod)
+SymExp Product::operator+(Product&& prod)
+{
+    return operator+(prod);
+}
+
+SymExp Product::operator-(Product& prod)
 {
     SymExp hold;
     hold.terms.push_back(*this);
@@ -128,7 +133,12 @@ SymExp Product::operator-(const Product& prod)
     return hold;
 }
 
-Product Product::operator*(const Product& prod)
+SymExp Product::operator-(Product&& prod)
+{
+    return operator-(prod);
+}
+
+Product Product::operator*(Product& prod)
 {
     int i1 = 0;
     int i2 = 0;
@@ -174,7 +184,12 @@ Product Product::operator*(const Product& prod)
     return Product(coeff*prod.coeff,mov(idsT),mov(powsT));
 }
 
-Product Product::operator/(const Product& prod)
+SymExp Product::operator*(Product&& prod)
+{
+    return operator*(prod);
+}
+
+/*Product Product::operator/(Product& prod)
 {
     int i1 = 0;
     int i2 = 0;
@@ -218,9 +233,9 @@ Product Product::operator/(const Product& prod)
     }
 
     return Product(coeff*prod.coeff,mov(idsT),mov(powsT));
-}
+}*/
 
-bool Product::CheckType(Product& prod) const
+bool Product::CheckType(Product& prod)
 {
     if (ids.size() != prod.ids.size())
         return false;
@@ -230,7 +245,7 @@ bool Product::CheckType(Product& prod) const
     return true;
 }
 
-SymExp Product::Eval(const SymExpTable& table) const
+SymExp Product::Eval(SymExpTable& table)
 {
     SymExp exp(coeff);
     int j = 0;
@@ -258,7 +273,7 @@ SymExp Product::Eval(const SymExpTable& table) const
     return exp;
 }
 
-float Product::SclEval(const SymExpTable& table) const
+float Product::SclEval(SymExpTable& table)
 {
     float hold = coeff;
     int j = 0;
@@ -279,7 +294,7 @@ float Product::SclEval(const SymExpTable& table) const
     return hold;
 }
 
-SymExp Product::Eval(const std::vector<int> valIds, const std::vector<float> values) const
+SymExp Product::Eval(std::vector<int> valIds, std::vector<float> values)
 {
     SymExp exp; exp.terms.push_back(Product(coeff));
     Product& prod = exp.terms[0];
@@ -308,7 +323,7 @@ SymExp Product::Eval(const std::vector<int> valIds, const std::vector<float> val
     return exp;
 }
 
-float Product::SclEval(const std::vector<int> valIds, const std::vector<float> values) const
+float Product::SclEval(std::vector<int> valIds, std::vector<float> values)
 {
     float hold = coeff;
     int j = 0;
@@ -330,9 +345,9 @@ float Product::SclEval(const std::vector<int> valIds, const std::vector<float> v
 }
 
 
-std::string Product::ToString() const { SymParser p; return ToString(p, true); }
+std::string Product::ToString() { SymParser p; return ToString(p, true); }
 
-std::string Product::ToString(SymParser& parser, bool genDef) const
+std::string Product::ToString(SymParser& parser, bool genDef)
 {
     if (genDef)
         parser.GenerateDefaults(*this);
@@ -351,15 +366,15 @@ std::string Product::ToString(SymParser& parser, bool genDef) const
     return hold;
 }
 
-std::vector<int> Product::GetIds() const
+std::vector<int> Product::GetIds()
 {
     return std::vector<int>(ids);
 }
 
-std::vector<Product> Product::Gradient() const{ return Gradient(GetIds()); }
-void Product::Gradient(std::vector<Product>& grad) const{ Gradient(GetIds(), grad); }
+std::vector<Product> Product::Gradient() { std::vector<int> ids = GetIds(); return Gradient(ids); }
+void Product::Gradient(std::vector<Product>& grad) { std::vector<int> ids = GetIds(); Gradient(ids, grad); }
 
-std::vector<Product> Product::Gradient(const std::vector<int>& gradIds) const
+std::vector<Product> Product::Gradient(std::vector<int>& gradIds)
 {
     std::vector<Product> grad; grad.resize(gradIds.size());
     for (int i = 0; i < gradIds.size(); i++)
@@ -383,7 +398,7 @@ std::vector<Product> Product::Gradient(const std::vector<int>& gradIds) const
 
     return mov(grad);
 }
-void Product::Gradient(const std::vector<int>& gradIds, std::vector<Product>& grad) const
+void Product::Gradient(std::vector<int>& gradIds, std::vector<Product>& grad)
 {
     grad.resize(0);
     grad.resize(gradIds.size());
@@ -409,7 +424,7 @@ void Product::Gradient(const std::vector<int>& gradIds, std::vector<Product>& gr
 
 
 //SymExp =====================================================
-SymExp SymExp::operator+(const SymExp& symExp)
+SymExp SymExp::operator+(SymExp& symExp)
 {
     std::vector<Product> termsP;
     termsP.insert(termsP.end(),terms.begin(),terms.end());
@@ -417,7 +432,7 @@ SymExp SymExp::operator+(const SymExp& symExp)
     return SymExp(scalar+symExp.scalar, termsP);
 }
 
-SymExp SymExp::operator-(const SymExp& symExp)
+SymExp SymExp::operator-(SymExp& symExp)
 {
     std::vector<Product> termsP;
     termsP.insert(termsP.end(),terms.begin(),terms.end());
@@ -428,7 +443,7 @@ SymExp SymExp::operator-(const SymExp& symExp)
     return SymExp(scalar+symExp.scalar, termsP);
 }
 
-SymExp SymExp::operator*(const SymExp& symExp)
+SymExp SymExp::operator*(SymExp& symExp)
 {
     SymExp hold;
     std::vector<Product>& termsP = hold.terms;
@@ -447,7 +462,7 @@ SymExp SymExp::operator*(const SymExp& symExp)
     return mov(hold);
 }
 
-SymExp SymExp::operator/(const Product& prod)
+/*SymExp SymExp::operator/(Product& prod)
 {
     SymExp hold;
     Product p;
@@ -469,7 +484,7 @@ SymExp SymExp::operator/(const Product& prod)
 
     hold.Simplify();
     return mov(hold);
-}
+}*/
 
 void SymExp::Simplify()
 {
@@ -501,12 +516,12 @@ void SymExp::Simplify()
     }
 }
 
-std::vector<int> SymExp::GetIds() const
+std::vector<int> SymExp::GetIds()
 {
     std::vector<int> ids;
     for (int i = 0; i < terms.size(); i++)
     {
-        const std::vector<int>& termIds = terms[i].ids;
+        std::vector<int>& termIds = terms[i].ids;
         for (int j = 0; j < termIds.size(); j++)
         {
             int ind = BinSearch(ids, termIds[j]);
@@ -517,9 +532,9 @@ std::vector<int> SymExp::GetIds() const
     return mov(ids);
 }
 
-std::string SymExp::ToString() const { SymParser p; return ToString(p, true); }
+std::string SymExp::ToString() { SymParser p; return ToString(p, true); }
 
-std::string SymExp::ToString(SymParser& parser, bool genDef) const
+std::string SymExp::ToString(SymParser& parser, bool genDef)
 {
     if (genDef)
         parser.GenerateDefaults(*this);
@@ -535,7 +550,7 @@ std::string SymExp::ToString(SymParser& parser, bool genDef) const
     return hold;
 }
 
-SymExp SymExp::Eval(const SymExpTable& table) const
+SymExp SymExp::Eval(SymExpTable& table)
 {
     SymExp exp(scalar);
     for (int i = 0; i < terms.size(); i++)
@@ -545,7 +560,7 @@ SymExp SymExp::Eval(const SymExpTable& table) const
     return exp;
 }
 
-float SymExp::SclEval(const SymExpTable& table) const
+float SymExp::SclEval(SymExpTable& table)
 {
     float sum(scalar);
     for (int i = 0; i < terms.size(); i++)
@@ -554,7 +569,7 @@ float SymExp::SclEval(const SymExpTable& table) const
     return sum;
 }
 
-SymExp SymExp::Eval(const std::vector<int> valIds, const std::vector<float> values) const
+SymExp SymExp::Eval(std::vector<int> valIds, std::vector<float> values)
 {
     SymExp exp(scalar);
     for (int i = 0; i < terms.size(); i++)
@@ -564,7 +579,7 @@ SymExp SymExp::Eval(const std::vector<int> valIds, const std::vector<float> valu
     return exp;
 }
 
-float SymExp::SclEval(const std::vector<int> valIds, const std::vector<float> values) const
+float SymExp::SclEval(std::vector<int> valIds, std::vector<float> values)
 {
     float sum(scalar);
     for (int i = 0; i < terms.size(); i++)
@@ -573,10 +588,10 @@ float SymExp::SclEval(const std::vector<int> valIds, const std::vector<float> va
     return sum;
 }
 
-std::vector<SymExp> SymExp::Gradient() const { return Gradient(GetIds()); }
-void SymExp::Gradient(std::vector<SymExp>& grad) const { Gradient(GetIds(), grad); }
+std::vector<SymExp> SymExp::Gradient() { std::vector<int> ids = GetIds(); return Gradient(ids); }
+void SymExp::Gradient(std::vector<SymExp>& grad) { std::vector<int> ids = GetIds(); Gradient(ids, grad); }
 
-std::vector<SymExp> SymExp::Gradient(const std::vector<int>& ids) const
+std::vector<SymExp> SymExp::Gradient(std::vector<int>& ids)
 {
     std::vector<SymExp> grad; grad.resize(ids.size());
     for (int i = 0; i < terms.size(); i++)
@@ -593,7 +608,7 @@ std::vector<SymExp> SymExp::Gradient(const std::vector<int>& ids) const
 
     return mov(grad);
 }
-void SymExp::Gradient(const std::vector<int>& ids, std::vector<SymExp>& grad) const
+void SymExp::Gradient(std::vector<int>& ids, std::vector<SymExp>& grad)
 {
     grad.clear();
     grad.resize(ids.size()); //gonna need to implement some memory system so SymExp vectors don't go out of scope on dealloc
@@ -610,15 +625,15 @@ void SymExp::Gradient(const std::vector<int>& ids, std::vector<SymExp>& grad) co
     }
 }
 
-std::vector<int> GetIds(const std::vector<SymExp>& exps)
+std::vector<int> GetIds(std::vector<SymExp>& exps)
 {
     std::vector<int> ids;
     for (int i = 0; i < exps.size(); i++)
     {
-        const std::vector<Product>& terms = exps[i].terms;
+        std::vector<Product>& terms = exps[i].terms;
         for (int i = 0; i < terms.size(); i++)
         {
-            const std::vector<int>& termIds = terms[i].ids;
+            std::vector<int>& termIds = terms[i].ids;
             for (int j = 0; j < termIds.size(); j++)
             {
                 int ind = BinSearch(ids, termIds[j]);
@@ -630,10 +645,10 @@ std::vector<int> GetIds(const std::vector<SymExp>& exps)
     return mov(ids);
 }
 
-Vector2D<SymExp> Gradient(const std::vector<SymExp>& exps){ return Gradient(exps, GetIds(exps));}
-void Gradient(const std::vector<SymExp>& exps, Vector2D<SymExp>& grad){ Gradient(exps, GetIds(exps), grad);}
+Vector2D<SymExp> Gradient(std::vector<SymExp>& exps){ std::vector<int> ids = GetIds(exps); return Gradient(exps, ids);}
+void Gradient(std::vector<SymExp>& exps, Vector2D<SymExp>& grad){ std::vector<int> ids = GetIds(exps); Gradient(exps, ids, grad);}
 
-Vector2D<SymExp> Gradient(const std::vector<SymExp>& exps, const std::vector<int>& gradIds) //vector of vecs, first component is the gradient for each exp
+Vector2D<SymExp> Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds) //vector of vecs, first component is the gradient for each exp
 {
     Vector2D<SymExp> grad(gradIds.size(), exps.size());
     for (int i = 0; i < exps.size(); i++)
@@ -645,7 +660,7 @@ Vector2D<SymExp> Gradient(const std::vector<SymExp>& exps, const std::vector<int
 
     return mov(grad);
 }
-void Gradient(const std::vector<SymExp>& exps, const std::vector<int>& gradIds, Vector2D<SymExp>& grad) //vector of vecs, first component is the gradient for each exp
+void Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds, Vector2D<SymExp>& grad) //vector of vecs, first component is the gradient for each exp
 {
     grad.clear();
     grad.SetDim(gradIds.size(), exps.size());
@@ -657,28 +672,28 @@ void Gradient(const std::vector<SymExp>& exps, const std::vector<int>& gradIds, 
     }
 }
 
-std::vector<float> SclEvalVec(const std::vector<SymExp>& exps, const SymExpTable& table)
+std::vector<float> SclEvalVec(std::vector<SymExp>& exps, SymExpTable& table)
 {
     std::vector<float> hold; hold.resize(exps.size());
     for (int i = 0; i < exps.size(); i++)
         hold[i] = exps[i].SclEval(table);
     return mov(hold);
 }
-std::vector<float> SclEvalVec(const std::vector<SymExp>& exps, const std::vector<int>& valIds, const std::vector<float>& values)
+std::vector<float> SclEvalVec(std::vector<SymExp>& exps, std::vector<int>& valIds, std::vector<float>& values)
 {
     std::vector<float> hold; hold.resize(exps.size());
     for (int i = 0; i < exps.size(); i++)
         hold[i] = exps[i].SclEval(valIds, values);
     return mov(hold);
 }
-Vector2D<float> SclEvalVec2D(const Vector2D<SymExp>& exps, const SymExpTable& table)
+Vector2D<float> SclEvalVec2D(Vector2D<SymExp>& exps, SymExpTable& table)
 {
     Vector2D<float> hold(exps.width, exps.height);
     for (int i = 0; i < hold.size(); i++)
         hold[i] = exps[i].SclEval(table);
     return mov(hold);
 }
-Vector2D<float> SclEvalVec2D(const Vector2D<SymExp>& exps, const std::vector<int>& valIds, const std::vector<float>& values)
+Vector2D<float> SclEvalVec2D(Vector2D<SymExp>& exps, std::vector<int>& valIds, std::vector<float>& values)
 {
     Vector2D<float> hold(exps.width,exps.height);;
     for (int i = 0; i < hold.size(); i++)
@@ -686,7 +701,7 @@ Vector2D<float> SclEvalVec2D(const Vector2D<SymExp>& exps, const std::vector<int
     return mov(hold);
 }
 
-std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, const std::vector<float> initial, const float threshold)
+std::vector<float> NMnTo1(SymExp& poly, std::vector<int> valIds, std::vector<float> initial, float threshold)
 {
     Vector<float>& testValue = _testValue; testValue = initial;
     Vector<float>& lastValue = _lastValue; lastValue = initial;
@@ -704,7 +719,8 @@ std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, con
 
         lastValue = testValue;
         float mult = eval/Dot(gradEval,gradEval);//P(x)/delP*delP
-        SubEq(testValue, Mul(gradEval,mult)); //creates new vec here :P
+        MulEq(gradEval, mult);
+        SubEq(testValue, gradEval); //creates new vec here :P
         //testValue.R() -= gradEval.R()*mult;
 
         Sub(testValue, lastValue, difVec);
@@ -717,7 +733,7 @@ std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, con
     return testValue;
 }
 
-std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<int> valIds, const std::vector<float> initial, const float threshold)
+std::vector<float> NMnTom(std::vector<SymExp>& polys, std::vector<int> valIds, std::vector<float> initial, float threshold)
 {
     Vector<float>& testValue = _testValue; testValue = initial;
     Vector<float>& lastValue = _lastValue; lastValue = initial;
@@ -979,21 +995,21 @@ std::vector<SymExp> ComplexPoly(const SymExp exp, const std::vector<int> ids, co
 
 
 //SymExpTable ===================================================
-void SymExpTable::Add(int key, const SymExp& exp)
+void SymExpTable::Add(int key, SymExp exp)
 {
     int ind = BinSearch(lookup, key);
     if (lookup.size() == ind)
     {
         lookup.push_back(key);
-        exps.push_back(exp);
+        exps.push_back(mov(exp));
         return;
     }
     if (lookup[ind] == key)
-        exps[ind] = exp;
+        exps[ind] = mov(exp);
     else
     {
         lookup.insert(lookup.begin()+ind, key);
-        exps.insert(exps.begin()+ind, exp);
+        exps.insert(exps.begin()+ind, mov(exp));
     }
 }
 
@@ -1028,7 +1044,7 @@ void SymParser::Add(int key, std::string name)
     }
 }
 
-void SymParser::GenerateDefaults(const Product& prod)
+void SymParser::GenerateDefaults(Product& prod)
 {
     int name = 0;
     std::string nameS = LettersFromNum(name);
@@ -1043,7 +1059,7 @@ void SymParser::GenerateDefaults(const Product& prod)
         }
     }
 
-    const std::vector<int>& ids = prod.ids;
+    std::vector<int>& ids = prod.ids;
     for (int j = 0; j < ids.size(); j++)
     {
         int ind = BinSearch(lookup, ids[j]);
@@ -1067,11 +1083,11 @@ void SymParser::GenerateDefaults(const Product& prod)
     }
 }
 
-void SymParser::GenerateDefaults(const SymExp& symExp)
+void SymParser::GenerateDefaults(SymExp& symExp)
 {
     //could somewhat simplify by using GetIds first, then iterating over ids
 
-    const std::vector<Product>& ts = symExp.terms;
+    std::vector<Product>& ts = symExp.terms;
     int name = 0;
     std::string nameS = LettersFromNum(name);
     //determine first name
@@ -1088,7 +1104,7 @@ void SymParser::GenerateDefaults(const SymExp& symExp)
     //find ids
     for (int i = 0; i < ts.size(); i++)
     {
-        const std::vector<int>& ids = ts[i].ids;
+        std::vector<int>& ids = ts[i].ids;
         for (int j = 0; j < ids.size(); j++)
         {
             int ind = BinSearch(lookup, ids[j]);
@@ -1112,7 +1128,7 @@ void SymParser::GenerateDefaults(const SymExp& symExp)
     }
 }
 
-std::string SymParser::SearchId(int id) const
+std::string SymParser::SearchId(int id)
 {
     int index = BinSearch(lookup, id);
     if (lookup[index] == id)
@@ -1120,7 +1136,7 @@ std::string SymParser::SearchId(int id) const
     else
         return std::to_string(id);
 }
-int SymParser::SearchName(const std::string& name) const
+int SymParser::SearchName(std::string& name)
 {
     for (int i = 0; i < names.size(); i++)
         if (names[i] == name)
@@ -1129,7 +1145,7 @@ int SymParser::SearchName(const std::string& name) const
 }
 
 
-std::string FloatToString(const float& floatRef)
+std::string FloatToString(float& floatRef)
 {
     int f = int(floatRef);
     int i = 0;

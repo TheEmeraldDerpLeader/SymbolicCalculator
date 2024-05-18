@@ -37,8 +37,6 @@ public:
 	void PushBack(float f);
 	int& iAt(int i);
 	float& fAt(int i);
-	const int& iAtC(int i) const;
-	const float& fAtC(int i) const;
 	void Reserve(int i);
 	void Resize(int i); //calls reserve(2*i) if i is > capacity
 	unsigned char* Extend(int i);
@@ -46,11 +44,10 @@ public:
 	//account for sizeof(float)
 
 	//getters
-	int idCount() const;
-	int idKey(int no) const;
-	int expCount() const;
+	int idCount();
+	int idKey(int no);
+	int expCount();
 	int& expIndex(int exp);
-	const int& expIndexC(int exp) const;
 	float expScalar(int exp);
 	int prodCount(int exp);
 	int prodIndex(int exp, int prod);
@@ -63,8 +60,8 @@ public:
 	//Only implement setters for the stuff needed right now
 
 	FlatSymExp() = default;
-	FlatSymExp(const SymExp& exp);
-	FlatSymExp(const std::vector<SymExp>& exps);
+	FlatSymExp(SymExp& exp);
+	FlatSymExp(std::vector<SymExp>& exps);
 
 	FlatSymExp(FlatSymExp&& exp);
 	FlatSymExp& operator=(FlatSymExp&& exp);
@@ -72,16 +69,16 @@ public:
 	void GenerateSymExp(SymExp& out);
 	void GenerateSymExps(std::vector<SymExp>& out);
 
-	std::vector<float> SclEval(const std::vector<int>& valIds, const std::vector<float>& values) const;
+	std::vector<float> SclEval(std::vector<int>& valIds, std::vector<float>& values);
 
-	FlatSymExp Gradient() const;
+	FlatSymExp Gradient();
 
 	void CopyData(char* newAddress);
 	~FlatSymExp() { if (data != nullptr) delete[] data; size = 0; capacity = 0; }
 };
 
-FlatSymExp CreateFlat(const SymExp& exp);
-FlatSymExp CreateFlat(const std::vector<SymExp>& exps);
+FlatSymExp CreateFlat(SymExp& exp);
+FlatSymExp CreateFlat(std::vector<SymExp>& exps);
 
 
 #undef float

@@ -24,22 +24,22 @@ public:
 	{
 
 	}
-	Vector<T>(const std::vector<T>& v) : std::vector<T>(v)
+	Vector<T>(std::vector<T>& vCopy) : std::vector<T>(vCopy)
 	{
 	
 	}
-	Vector<T>(std::vector<T>&& v) : std::vector<T>(v)
+	Vector<T>(std::vector<T>&& vMove) : std::vector<T>(vMove)
 	{
 
 	}
-	Vector<T>& operator=(const std::vector<T>& v) 
+	Vector<T>& operator=(std::vector<T>& vCopy) 
 	{
-		*static_cast<std::vector<T>*>(this) = v;
+		*static_cast<std::vector<T>*>(this) = vCopy;
 		return *this;
 	}
-	Vector<T>& operator=(std::vector<T>&& v) 
+	Vector<T>& operator=(std::vector<T>&& vMove) 
 	{
-		*static_cast<std::vector<T>*>(this) = v;
+		*static_cast<std::vector<T>*>(this) = vMove;
 		return *this;
 	}
 };
@@ -60,22 +60,22 @@ public:
 	{
 
 	}
-	Vector2D<T>(const std::vector<T>& v) : std::vector<T>(v)
+	Vector2D<T>(std::vector<T>& vCopy) : std::vector<T>(vCopy)
 	{
 
 	}
-	Vector2D<T>(std::vector<T>&& v) : std::vector<T>(v)
+	Vector2D<T>(std::vector<T>&& vMove) : std::vector<T>(vMove)
 	{
 
 	}
-	Vector2D<T>& operator=(const std::vector<T>& v) 
+	Vector2D<T>& operator=(std::vector<T>& vCopy) 
 	{
-		*static_cast<std::vector<T>*>(this) = v;
+		*static_cast<std::vector<T>*>(this) = vCopy;
 		return *this;
 	}
-	Vector2D<T>& operator=(std::vector<T>&& v) 
+	Vector2D<T>& operator=(std::vector<T>&& vMove) 
 	{
-		*static_cast<std::vector<T>*>(this) = v;
+		*static_cast<std::vector<T>*>(this) = vMove;
 		return *this;
 	}
 	
@@ -87,21 +87,12 @@ public:
 	}
 
 	T& At(int x, int y) { return (*this)[(x*height)+y]; }
-	const T& At(int x, int y) const { return (*this)[(x*height)+y]; }
 
 	VectorRef<T> GetCol(int x)
 	{
 		return VectorRef<T>(height, this->data()+(height*x));
 	}
-	const VectorRef<T> GetCol(int x) const
-	{
-		return VectorRef<T>(height, this->data()+(height*x));
-	}
 	VectorOffRef<T> GetRow(int y)
-	{
-		return VectorOffRef<T>(width, height, this->data()+y);
-	}
-	const VectorOffRef<T> GetRow(int y) const
 	{
 		return VectorOffRef<T>(width, height, this->data()+y);
 	}
@@ -115,7 +106,7 @@ private:
 public:
 	int length = 0;
 	T* data = nullptr;
-	inline int size() const {return length;}
+	inline int size() {return length;}
 
 	VectorRef(int lengthInt, T* dataPtr)
 	{
@@ -134,7 +125,6 @@ public:
 	}
 
 	T& operator[](int index) { return data[index]; }
-	const T& operator[](int index) const { return data[index]; }
 
 	//Vector<T> operator*(const Vector2DRef<T>& v) const;
 };
@@ -147,7 +137,7 @@ public:
 	int length = 0;
 	int offset = 1;
 	T* data = nullptr;
-	inline int size() const {return length;}
+	inline int size() {return length;}
 
 	VectorOffRef(int lengthInt, int offsetInt, T* dataPtr)
 	{
@@ -157,7 +147,6 @@ public:
 	}
 
 	T& operator[](int index) { return data[offset*index]; }
-	const T& operator[](int index) const { return data[offset*index]; }
 
 	//Vector<T> operator*(const Vector2DRef<T>& v) const;
 };
@@ -169,7 +158,7 @@ public:
 	int width = 0;
 	int height = 0;
 	T* data = nullptr;
-	inline int size() const {return width*height;}
+	inline int size() {return width*height;}
 
 	Vector2DRef(int w, int h, T* dataPtr)
 	{
@@ -185,16 +174,10 @@ public:
 	}
 
 	T& operator[](int index) { return data[index]; }
-	const T& operator[](int index) const { return data[index]; }
 
 	T& At(int x, int y) { return data[(x*height)+y]; }
-	const T& At(int x, int y) const { return data[(x*height)+y]; }
 
 	VectorRef<T> GetCol(int x)
-	{
-		return VectorRef<T>(height, data+(height*x));
-	}
-	const VectorRef<T> GetCol(int x) const
 	{
 		return VectorRef<T>(height, data+(height*x));
 	}
@@ -202,15 +185,11 @@ public:
 	{
 		return VectorOffRef<T>(width, height, data+y);
 	}
-	const VectorOffRef<T> GetRow(int y) const
-	{
-		return VectorOffRef<T>(width, height, data+y);
-	}
 };
 
 
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-Vector<T> Add(const T1<T>& v1, const T2<T>& v2)
+Vector<T> Add(T1<T>& v1, T2<T>& v2)
 {
 	int l = v1.size();
 	Vector<T> hold; hold.resize(l);
@@ -219,21 +198,21 @@ Vector<T> Add(const T1<T>& v1, const T2<T>& v2)
 	return hold;
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2, template<typename> typename T3>
-void Add(const T1<T>& v1, const T2<T>& v2, T3<T>& out)
+void Add(T1<T>& v1, T2<T>& v2, T3<T>& out)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)
 		out[i] = v1[i]+v2[i];
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-void AddEq(T1<T>& v1, const T2<T>& v2)
+void AddEq(T1<T>& v1, T2<T>& v2)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)
 		v1[i] += v2[i];
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-Vector<T> Sub(const T1<T>& v1, const T2<T>& v2)
+Vector<T> Sub(T1<T>& v1, T2<T>& v2)
 {
 	int l = v1.size();
 	Vector<T> hold; hold.resize(l);
@@ -242,21 +221,21 @@ Vector<T> Sub(const T1<T>& v1, const T2<T>& v2)
 	return hold;
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2, template<typename> typename T3>
-void Sub(const T1<T>& v1, const T2<T>& v2, T3<T>& out)
+void Sub(T1<T>& v1, T2<T>& v2, T3<T>& out)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)
 		out[i] = v1[i]-v2[i];
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-void SubEq(T1<T>& v1, const T2<T>& v2)
+void SubEq(T1<T>& v1, T2<T>& v2)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)
 		v1[i] -= v2[i];
 }
 template<typename T, template<typename> typename T1>
-Vector<T> Mul(const T1<T>& v1, const T& s)
+Vector<T> Mul(T1<T>& v1, T& s)
 {
 	int l = v1.size();
 	Vector<T> hold; hold.resize(l);
@@ -265,14 +244,14 @@ Vector<T> Mul(const T1<T>& v1, const T& s)
 	return hold;
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-void Mul(const T1<T>& v1, const T& s, T2<T>& out)
+void Mul(T1<T>& v1, T& s, T2<T>& out)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)
 		out[i] = v1[i]*s;
 }
 template<typename T, template<typename> typename T1>
-void MulEq(T1<T>& v1, const T& s)
+void MulEq(T1<T>& v1, T& s)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)
@@ -280,7 +259,7 @@ void MulEq(T1<T>& v1, const T& s)
 }
 
 template<typename T, template<typename> typename T1>
-T SumAbs(const T1<T>& v1) //will error if glm::abs(T) doesn't work
+T SumAbs(T1<T>& v1) //will error if glm::abs(T) doesn't work
 {
 	T sum = 0;
 	int l = v1.size();
@@ -289,7 +268,7 @@ T SumAbs(const T1<T>& v1) //will error if glm::abs(T) doesn't work
 	return sum;
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-T Dot(const T1<T>& v1, const T2<T>& v2)
+T Dot(T1<T>& v1, T2<T>& v2)
 {
 	T sum = T();
 	int l = v1.size();
@@ -298,7 +277,7 @@ T Dot(const T1<T>& v1, const T2<T>& v2)
 	return sum;
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-Vector<T> CompMul(const T1<T>& v1, const T2<T>& v2)
+Vector<T> CompMul(T1<T>& v1, T2<T>& v2)
 {
 	int l = v1.size();
 	Vector<T> hold; hold.resize(l);

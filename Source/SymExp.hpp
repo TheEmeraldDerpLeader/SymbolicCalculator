@@ -10,6 +10,15 @@
 
 #define float float
 
+/*
+Putting this here for later:
+
+How to easily use const with these classes
+
+#define uc(o) const_cast<decltype(o)&>(o)
+
+*/
+
 class SymExp;
 class SymParser;
 class SymExpTable;
@@ -32,31 +41,39 @@ public:
 	void ClearEmpty();
 	Product& MultId(int id, int pow = 1);
 
-	Product& operator=(const Product& prod) { coeff = prod.coeff; ids = prod.ids; pows = prod.pows; return *this; }
-	SymExp operator+(const Product& prod);
-	SymExp operator-(const Product& prod);
-	Product operator*(const Product& prod);
-	Product operator*(const float& co) const { return Product(coeff*co, ids, pows); };
-	Product operator/(const Product& prod);
-	Product operator/(const float& co) const { return Product(coeff/co, ids, pows); };
-	Product& operator*=(const Product& prod) { operator=(operator*(prod)); return *this; }
-	Product& operator/=(const Product& prod) { operator=(operator/(prod)); return *this; }
+	Product(const Product& prod) { coeff = prod.coeff; ids = prod.ids; pows = prod.pows; }
+	Product& operator=(Product& prod) { coeff = prod.coeff; ids = prod.ids; pows = prod.pows; return *this; }
+	Product(Product&& prodMove) { coeff = prodMove.coeff; ids = prodMove.ids; pows = prodMove.pows; }
+	Product& operator=(Product&& prodMove) { coeff = prodMove.coeff; ids = prodMove.ids; pows = prodMove.pows; return *this; }
+	
+	SymExp operator+(Product& prod);
+	SymExp operator+(Product&& prod);
+	SymExp operator-(Product& prod);
+	SymExp operator-(Product&& prod);
+	Product operator*(Product& prod);
+	SymExp operator*(Product&& prod);
+	Product operator*(float co) { return Product(coeff*co, ids, pows); };
+	//Product operator/(Product& prod); //negative powers are deprecated
+	Product operator/(float co) { return Product(coeff/co, ids, pows); };
+	Product& operator*=(Product& prod) { operator=(operator*(prod)); return *this; }
+	Product& operator*=(Product&& prod) { operator=(operator*(prod)); return *this; }
+	//Product& operator/=(Product& prod) { operator=(operator/(prod)); return *this; }
 
-	bool CheckType(Product& prod) const;
+	bool CheckType(Product& prod);
 
-	SymExp Eval(const SymExpTable& table) const;
-	float SclEval(const SymExpTable& table) const;
-	SymExp Eval(const std::vector<int> valIds, const std::vector<float> values) const;
-	float SclEval(const std::vector<int> valIds, const std::vector<float> values) const;
+	SymExp Eval(SymExpTable& table);
+	float SclEval(SymExpTable& table);
+	SymExp Eval(std::vector<int> valIds, std::vector<float> values);
+	float SclEval(std::vector<int> valIds, std::vector<float> values);
 
-	std::string ToString() const;
-	std::string ToString(SymParser& parser, bool genDef = true) const;
+	std::string ToString();
+	std::string ToString(SymParser& parser, bool genDef = true);
 
-	std::vector<int> GetIds() const;
-	std::vector<Product> Gradient() const;
-	void Gradient(std::vector<Product>& out) const;
-	std::vector<Product> Gradient(const std::vector<int>& ids) const;
-	void Gradient(const std::vector<int>& ids, std::vector<Product>& grad) const;
+	std::vector<int> GetIds();
+	std::vector<Product> Gradient();
+	void Gradient(std::vector<Product>& out);
+	std::vector<Product> Gradient(std::vector<int>& ids);
+	void Gradient(std::vector<int>& ids, std::vector<Product>& grad);
 };
 
 class SymExp
@@ -71,43 +88,54 @@ public:
 	SymExp(float scalarFloat, std::vector<Product> termsVec) : scalar(scalarFloat), terms(termsVec) {}
 	SymExp(Product prod) { terms.push_back(prod); }
 
-	SymExp& operator=(const SymExp& symExp) { scalar = symExp.scalar; terms = symExp.terms; return *this; }
-	SymExp operator+(const SymExp& symExp);
-	SymExp operator-(const SymExp& symExp);
-	SymExp operator*(const SymExp& symExp);
-	SymExp operator/(const Product& prod);
-	SymExp& operator+=(const SymExp& symExp) { operator=(operator+(symExp)); return *this; }
-	SymExp& operator-=(const SymExp& symExp) { operator=(operator-(symExp)); return *this; }
-	SymExp& operator*=(const SymExp& symExp) { operator=(operator*(symExp)); return *this; }
-	SymExp& operator/=(const Product& prod) { operator=(operator/(prod)); return *this; }
+	SymExp(const SymExp& symExp) { scalar = symExp.scalar; terms = symExp.terms; }
+	SymExp& operator=(SymExp& symExp) { scalar = symExp.scalar; terms = symExp.terms; return *this; }
+	SymExp(SymExp&& symExpMove) { scalar = symExpMove.scalar; terms = symExpMove.terms;}
+	SymExp& operator=(SymExp&& symExpMove) { scalar = symExpMove.scalar; terms = symExpMove.terms; return *this; }
+	SymExp operator+(SymExp& symExp);
+	SymExp operator+(SymExp&& symExp) { return operator+(symExp); };
+	SymExp operator-(SymExp& symExp);
+	SymExp operator-(SymExp&& symExp) { return operator-(symExp); };
+	SymExp operator*(SymExp& symExp);
+	SymExp operator*(SymExp&& symExp) { return operator*(symExp); };
+	//SymExp operator/(Product& prod);
+	//SymExp operator/(Product&& prodMove) { Product hold = prodMove; return operator/(hold); };
+	SymExp& operator+=(SymExp& symExp) { operator=(operator+(symExp)); return *this; }
+	SymExp& operator+=(SymExp&& symExp) { operator=(operator+(symExp)); return *this; }
+	SymExp& operator-=(SymExp& symExp) { operator=(operator-(symExp)); return *this; }
+	SymExp& operator-=(SymExp&& symExp) { operator=(operator-(symExp)); return *this; }
+	SymExp& operator*=(SymExp& symExp) { operator=(operator*(symExp)); return *this; }
+	SymExp& operator*=(SymExp&& symExp) { operator=(operator*(symExp)); return *this; }
+	//SymExp& operator/=(Product& prod) { operator=(operator/(prod)); return *this; }
 
 	void Simplify();
 
-	std::string ToString() const;
-	std::string ToString(SymParser& parser, bool genDef = true) const;
-	SymExp Eval(const SymExpTable& table) const;
-	float SclEval(const SymExpTable& table) const;
-	SymExp Eval(const std::vector<int> valIds, const std::vector<float> values) const;
-	float SclEval(const std::vector<int> valIds, const std::vector<float> values) const;
+	std::string ToString();
+	std::string ToString(SymParser& parser, bool genDef = true);
+	SymExp Eval(SymExpTable& table);
+	float SclEval(SymExpTable& table);
+	float SclEval(SymExpTable&& table) { return SclEval(table); }
+	SymExp Eval(std::vector<int> valIds, std::vector<float> values);
+	float SclEval(std::vector<int> valIds, std::vector<float> values);
 
-	std::vector<int> GetIds() const;
-	std::vector<SymExp> Gradient() const;
-	void Gradient(std::vector<SymExp>& grad) const;
-	std::vector<SymExp> Gradient(const std::vector<int>& gradIds) const;
-	void Gradient(const std::vector<int>& gradIds, std::vector<SymExp>& grad) const;
+	std::vector<int> GetIds();
+	std::vector<SymExp> Gradient();
+	void Gradient(std::vector<SymExp>& grad);
+	std::vector<SymExp> Gradient(std::vector<int>& gradIds);
+	void Gradient(std::vector<int>& gradIds, std::vector<SymExp>& grad);
 };
 
-std::vector<int> GetIds(const std::vector<SymExp>& exps);
-Vector2D<SymExp> Gradient(const std::vector<SymExp>& exps);
-void Gradient(const std::vector<SymExp>& exps, Vector2D<SymExp>& grad);
-Vector2D<SymExp> Gradient(const std::vector<SymExp>& exps, const std::vector<int>& gradIds);
-void Gradient(const std::vector<SymExp>& exps, const std::vector<int>& gradIds, Vector2D<SymExp>& grad);
-std::vector<float> SclEvalVec(const std::vector<SymExp>& exps, const SymExpTable& table);
-std::vector<float> SclEvalVec(const std::vector<SymExp>& exps, const std::vector<int>& valIds, const std::vector<float>& values);
-Vector2D<float> SclEvalVec2D(const Vector2D<SymExp>& exps, const SymExpTable& table);
-Vector2D<float> SclEvalVec2D(const Vector2D<SymExp>& exps, const std::vector<int>& valIds, const std::vector<float>& values);
-std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, const std::vector<float> initial, const float threshold = 0.00001);
-std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<int> valIds, const std::vector<float> initial, const float threshold = 0.00001);
+std::vector<int> GetIds(std::vector<SymExp>& exps);
+Vector2D<SymExp> Gradient(std::vector<SymExp>& exps);
+void Gradient(std::vector<SymExp>& exps, Vector2D<SymExp>& grad);
+Vector2D<SymExp> Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds);
+void Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds, Vector2D<SymExp>& grad);
+std::vector<float> SclEvalVec(std::vector<SymExp>& exps, SymExpTable& table);
+std::vector<float> SclEvalVec(std::vector<SymExp>& exps, std::vector<int>& valIds, std::vector<float>& values);
+Vector2D<float> SclEvalVec2D(Vector2D<SymExp>& exps, SymExpTable& table);
+Vector2D<float> SclEvalVec2D(Vector2D<SymExp>& exps, std::vector<int>& valIds, std::vector<float>& values);
+std::vector<float> NMnTo1(SymExp& poly, std::vector<int> valIds, std::vector<float> initial, float threshold = 0.00001);
+std::vector<float> NMnTom(std::vector<SymExp>& polys, std::vector<int> valIds, std::vector<float> initial, float threshold = 0.00001);
 
 //takes a vec2D that represents a map that takes v1 to v2, with a column describing how a coordinate of v1 maps to a vector of v2 (like a matrix), then returns a set of linear equations which describe how to replace the og coords xi\
 with new coords x'i in the form of < <x1 = x'1 + m2x2 + m3x3 + ...>, <x2 = x'2 + n3x3 + ...>, ...> . Given xi, one can calculate x'i by moving xi terms to one side. Given x'i, one can find xi by starting at xn = x'n, and working down until n = 1.\
@@ -130,8 +158,8 @@ public:
 	std::vector<int> lookup;
 	std::vector<SymExp> exps;
 
-	void Add(int key, float val) { Add(key, SymExp(val)); }
-	void Add(int key, const SymExp& exp); //check if key is already in lookup, update if it is, otherwise push_back
+	void Add(int key, float val) { SymExp hold = SymExp(val); Add(key, hold); }
+	void Add(int key, SymExp exp); //check if key is already in lookup, update if it is, otherwise push_back
 };
 
 std::string LettersFromNum(int num); // 0 -> a, 1 -> b, 26 -> aa
@@ -143,14 +171,14 @@ public:
 	std::vector<std::string> names;
 
 	void Add(int key, std::string name); //check if key is already in lookup, update if it is
-	void GenerateDefaults(const Product& prod);
-	void GenerateDefaults(const SymExp& symExp);
-	std::string SearchId(int id) const;
-	int SearchName(const std::string& name) const;
+	void GenerateDefaults(Product& prod);
+	void GenerateDefaults(SymExp& symExp);
+	std::string SearchId(int id);
+	int SearchName(std::string& name);
 };
 
-std::string FloatToString(const float& floatRef);
+std::string FloatToString(float& floatRef);
 
-int BinSearch(const std::vector<int>& vec, int val);
-int BinSearch(const std::vector<int>& vec, int lower, int upper, int val);
+int BinSearch(std::vector<int>& vec, int val);
+int BinSearch(std::vector<int>& vec, int lower, int upper, int val);
 #undef float

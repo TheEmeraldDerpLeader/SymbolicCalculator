@@ -95,7 +95,7 @@ SymExp GenRandomPoly(int varCount, int maxP, float range)
 	
 }
 
-std::vector<float> NewtonFractalTest(const std::vector<float> initial, const float threshold = 0.00001);
+std::vector<float> NewtonFractalTest(std::vector<float> initial, float threshold = 0.00001);
 
 int main()
 {
@@ -348,7 +348,9 @@ int main()
 
 	FlatSymExp flatTestGrad = flatTest.Gradient();
 
-	f1 = SclEvalVec(Gradient(testM), flatIds, flatCoords);
+	Vector2D<SymExp> testMGrad = Gradient(testM);
+
+	f1 = SclEvalVec(testMGrad, flatIds, flatCoords);
 	f2 = flatTestGrad.SclEval(flatIds, flatCoords);
 
 	SFMLRendererAPI sfmlapi;
@@ -382,20 +384,19 @@ int main()
 	rendExp[1].scalar += 0.05;*/
 
 	//simple redundant
-	rendExp.push_back(SymExp(1)); rendExp.push_back(SymExp(0)); 
-	hold = SymExp(-1); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
-	hold = SymExp(-4); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1.5f, 1, 2)); rendExp[0] *= hold;
-	hold = SymExp(-9); hold.terms.push_back(Product(1.5f, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
-	//hold = SymExp(-16); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
-	hold = SymExp(-32); hold.terms.push_back(Product(1, 0, 3)); hold.terms.push_back(Product(2.5f, 1, 2)); rendExp[0] *= hold;
+	//rendExp.push_back(SymExp(1)); rendExp.push_back(SymExp(0)); 
+	//hold = SymExp(-1); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
+	//hold = SymExp(-4); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1.5f, 1, 2)); rendExp[0] *= hold;
+	//hold = SymExp(-9); hold.terms.push_back(Product(1.5f, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
+	//hold = SymExp(-32); hold.terms.push_back(Product(1, 0, 3)); hold.terms.push_back(Product(2.5f, 1, 2)); rendExp[0] *= hold;
 
 
 	//rendExp.push_back(SymExp(-1)); rendExp[0].terms.push_back(Product(1,0)); rendExp[0].terms.push_back(Product(1,1));
 	//rendExp.push_back(SymExp(0));
 
 	//Random
-	//rendExp.push_back(SymExp(GenRandomPoly(2, 4, 4))); rendExp.push_back(GenRandomPoly(2, 4, 4));
-	//rendExp[0].scalar = 0; rendExp[1].scalar = 0;
+	rendExp.push_back(SymExp(GenRandomPoly(2, 4, 4))); rendExp.push_back(GenRandomPoly(2, 4, 4));
+	rendExp[0].scalar = 0; rendExp[1].scalar = 0;
 	
 	//NM
 	//rendExp.push_back(SymExp(-1)); rendExp.push_back(SymExp(0));
@@ -420,8 +421,22 @@ int main()
 			//rendVal = NewtonFractalTest(rendVal);
 			Vector<float> eval = SclEvalVec(rendExp, rendIds, rendVal);
 			
-			//color by root
+			//color by final position
+			//if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (isnan(eval[0]) || isnan(eval[1]) ))
+			//	rootAssoc[(800*x)+y] = -1;
 			/*
+			if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 1.5f)
+				rootAssoc[(800*x)+y] = 0;
+			else if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 4.5f)
+				rootAssoc[(800*x)+y] = 1;
+			else if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 9.5f)
+				rootAssoc[(800*x)+y] = 2;
+			else
+				rootAssoc[(800*x)+y] = 3;
+			*/
+			
+			//color by root
+			
 			int id = roots[0].size();
 			for (int i = 0; i < roots[0].size(); i++)
 			{
@@ -439,7 +454,7 @@ int main()
 				roots[1].push_back(rendVal[1]);
 			}
 			rootAssoc[(800*x)+y] = id;
-			*/
+			
 
 			//color by eval (comment NM)
 			/*float evalD = Dot(eval, eval); if (evalD < 0) evalD *= -1;
@@ -450,17 +465,6 @@ int main()
 				evalD /= 1.5f;
 			}*/
 
-			//color by final position
-			//if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (isnan(eval[0]) || isnan(eval[1]) ))
-			//	rootAssoc[(800*x)+y] = -1;
-			if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 1.5f)
-				rootAssoc[(800*x)+y] = 0;
-			else if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 4.5f)
-				rootAssoc[(800*x)+y] = 1;
-			else if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 9.5f)
-				rootAssoc[(800*x)+y] = 2;
-			else
-				rootAssoc[(800*x)+y] = 3;
 			
 		}
 	}
@@ -509,7 +513,7 @@ int main()
 	return 0;
 }
 
-std::vector<float> NewtonFractalTest(const std::vector<float> initial, const float threshold)
+std::vector<float> NewtonFractalTest(std::vector<float> initial, float threshold)
 {
 	std::vector<int> valIds; valIds.push_back(0); valIds.push_back(1);\
 
