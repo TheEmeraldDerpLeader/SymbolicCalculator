@@ -19,9 +19,8 @@ thread_local Vector2D<float> _vBasis;
 thread_local Vector2D<float> _wBasis;
 thread_local Vector<float> _wDivForV;
 thread_local Vector<float> _eval;
-thread_local Vector<float> _change;
-thread_local Vector2D<float> _hold;
-thread_local Vector2D<float> _newMap;
+//thread_local Vector2D<float> _hold;
+//thread_local Vector2D<float> _newMap;
 thread_local std::vector<Product> _prodGrad;
 thread_local std::vector<SymExp> _expGrad;
 
@@ -687,7 +686,7 @@ Vector2D<float> SclEvalVec2D(const Vector2D<SymExp>& exps, const std::vector<int
     return mov(hold);
 }
 
-std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, const std::vector<float> initial, const float threshold) //this algo is right I think
+std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, const std::vector<float> initial, const float threshold)
 {
     Vector<float>& testValue = _testValue; testValue = initial;
     Vector<float>& lastValue = _lastValue; lastValue = initial;
@@ -733,7 +732,6 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
     Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(initial.size(),polys.size());
     Vector<float>& wDivForV = _wDivForV; wDivForV.resize(initial.size());
     Vector<float>& eval = _eval; eval.resize(polys.size());
-    Vector<float>& change = _change; change = initial;
     while (dif > threshold && dif < 250 && count < 80)
     {
         eval = SclEvalVec(polys, valIds, testValue);
@@ -741,7 +739,7 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
 
         lastValue = testValue;
 
-        //transform gradEval into new basis with ortho wi (does not work, may need to reuse CoeffFromGramSchimidt, but try to use gradVs)
+        //transform gradEval into new basis with ortho wi
         int vCount = 0;
         for (int i = 0; i < polys.size() && vCount < initial.size(); i++) //i is the grad row used, vCount is the number of vis currently found
         {
@@ -853,6 +851,7 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
 }*/
 
 //name technically describes how function works, but not it's intent lol
+/*
 Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>& outNewMap) { return CoeffFromGramSchmidt(vecMap, &outNewMap); }
 
 Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>* outNewMap)
@@ -877,6 +876,7 @@ Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<flo
         *outNewMap = newMap;
     return hold;
 }
+*/
 
 void ResetGlobals()
 {
@@ -891,9 +891,8 @@ void ResetGlobals()
     _wBasis = Vector2D<float>(); _wBasis.shrink_to_fit();
     _wDivForV = Vector<float>(); _wDivForV.shrink_to_fit();
     _eval = Vector<float>(); _eval.shrink_to_fit();
-    _change = Vector<float>(); _change.shrink_to_fit();
-    _hold = Vector2D<float>(); _hold.shrink_to_fit();
-    _newMap = Vector2D<float>(); _newMap.shrink_to_fit();
+    //_hold = Vector2D<float>(); _hold.shrink_to_fit();
+    //_newMap = Vector2D<float>(); _newMap.shrink_to_fit();
     _prodGrad = std::vector<Product>(); _prodGrad.shrink_to_fit();
     _expGrad = std::vector<SymExp>(); _expGrad.shrink_to_fit();
 }

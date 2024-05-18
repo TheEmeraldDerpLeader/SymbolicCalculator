@@ -113,8 +113,8 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
 with new coords x'i in the form of < <x1 = x'1 + m2x2 + m3x3 + ...>, <x2 = x'2 + n3x3 + ...>, ...> . Given xi, one can calculate x'i by moving xi terms to one side. Given x'i, one can find xi by starting at xn = x'n, and working down until n = 1.\
 Also writes into outNewMap the projection of the vecMap on the new basis (outNewMap has orthogonal column vectors). outNewMap can be thought of as a new map on the x'i basis, i.e. vecMap*x = outNewMap*x'.\
 Note that return value shouldn't be treated like a matrix nor a vector of vectors, it represents the right side of a system of linear equations, so conversion between basis must be done following the rules mentioned above.
-Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>& outNewMap);
-Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>* outNewMap);
+//Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>& outNewMap);
+//Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>* outNewMap);
 
 //resets thread_local variables used for NM and CoeffFromGramSchmidt
 void ResetGlobals();
