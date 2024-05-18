@@ -334,6 +334,10 @@ int main()
 	testM.push_back(SymExp()); testM[0].scalar = 1;
 	testM[0].terms.push_back(Product(2, 3, 4));
 	testM.push_back(GenRandomPoly(3,3,3));
+	/*testM.push_back(SymExp());
+	testM[1].terms.push_back(Product(2,0,1)); testM[1].terms[0].MultId(1,1);
+	testM[1].terms.push_back(Product(2,0,1)); testM[1].terms[1].MultId(3,2);
+	testM[1].terms.push_back(Product(2,0,1)); testM[1].terms[2].MultId(1,1); testM[1].terms[2].MultId(3,1);*/
 	FlatSymExp flatTest = FlatSymExp(testM);
 
 	std::vector<int> flatIds; flatIds.push_back(0); flatIds.push_back(1); flatIds.push_back(2); flatIds.push_back(3);
@@ -342,13 +346,58 @@ int main()
 	std::vector<float> f1 = SclEvalVec(testM, flatIds, flatCoords);
 	std::vector<float> f2 = flatTest.SclEval(flatIds, flatCoords);
 
+	FlatSymExp flatTestGrad = flatTest.Gradient();
+
+	f1 = SclEvalVec(Gradient(testM), flatIds, flatCoords);
+	f2 = flatTestGrad.SclEval(flatIds, flatCoords);
+
 	SFMLRendererAPI sfmlapi;
 	sfmlapi.SetTex(tex, 16, 16);
 
 	randSeed(0);
-	//err //pass reference for Gradient, reset vectors, change vector assignment to resize. 1:15 time, bubbles going left, lots of cyan bottom right, boot shape at center (like louisiana)
-	std::vector<SymExp> rendExp; rendExp.push_back(SymExp(GenRandomPoly(2, 4, 4))); rendExp.push_back(GenRandomPoly(2, 4, 4));
-	rendExp[0].scalar = 0; rendExp[1].scalar = 0;
+	std::vector<SymExp> rendExp; 
+	
+	SymExp hold;
+
+	//SimpleQuad
+	//rendExp.push_back(SymExp(1));
+	//hold = SymExp(-1); hold.terms.push_back(Product(1, 0, 1)); hold.terms.push_back(Product(1, 1, 1)); rendExp[0] *= hold;
+	//hold = SymExp(-1); hold.terms.push_back(Product(-1, 0, 1)); hold.terms.push_back(Product(1, 1, 1)); rendExp[0] *= hold;
+	//rendExp.push_back(SymExp(1));
+	//hold = SymExp(1); hold.terms.push_back(Product(1, 1, 1)); rendExp[1] *= hold;
+	//hold = SymExp(0); hold.terms.push_back(Product(1, 0, 1)); rendExp[1] *= hold;
+	//rendExp[0].scalar -= 0.25f;
+	//rendExp[1].scalar -= 0.25f;
+
+	/*float m = glm::sqrt(0.5f);
+	float n = glm::sqrt(3.0f)/2.0f;
+	rendExp.push_back(SymExp(1)); rendExp.push_back(SymExp(1));
+	hold = SymExp(0.5); hold.terms.push_back(Product(1, 1, 1)); rendExp[0] *= hold;
+	hold = SymExp(-m); hold.terms.push_back(Product(1.5f*m/n, 0, 1)); hold.terms.push_back(Product(m, 1, 1)); rendExp[0] *= hold;
+	hold = SymExp(-m); hold.terms.push_back(Product(-1.5f*m/n, 0, 1)); hold.terms.push_back(Product(m, 1, 1)); rendExp[0] *= hold;
+	hold = SymExp(0); hold.terms.push_back(Product(1, 0, 1)); rendExp[1] *= hold;
+	hold = SymExp(0); hold.terms.push_back(Product(1.0f/n, 0, 1)); hold.terms.push_back(Product(-2, 1, 1)); rendExp[1] *= hold;
+	hold = SymExp(0); hold.terms.push_back(Product(-1.0f/n, 0, 1)); hold.terms.push_back(Product(-2, 1, 1)); rendExp[1] *= hold;
+	rendExp[0].scalar += 0.05;
+	rendExp[1].scalar += 0.05;*/
+
+	//simple redundant
+	rendExp.push_back(SymExp(1)); rendExp.push_back(SymExp(0)); 
+	hold = SymExp(-1); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
+	hold = SymExp(-4); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1.5f, 1, 2)); rendExp[0] *= hold;
+	hold = SymExp(-9); hold.terms.push_back(Product(1.5f, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
+	//hold = SymExp(-16); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
+	hold = SymExp(-32); hold.terms.push_back(Product(1, 0, 3)); hold.terms.push_back(Product(2.5f, 1, 2)); rendExp[0] *= hold;
+
+
+	//rendExp.push_back(SymExp(-1)); rendExp[0].terms.push_back(Product(1,0)); rendExp[0].terms.push_back(Product(1,1));
+	//rendExp.push_back(SymExp(0));
+
+	//Random
+	//rendExp.push_back(SymExp(GenRandomPoly(2, 4, 4))); rendExp.push_back(GenRandomPoly(2, 4, 4));
+	//rendExp[0].scalar = 0; rendExp[1].scalar = 0;
+	
+	//NM
 	//rendExp.push_back(SymExp(-1)); rendExp.push_back(SymExp(0));
 	//rendExp[0].terms.push_back(Product(1, 0, 3));	rendExp[0].terms.push_back(Product(-3, 0, 1)); rendExp[0].terms[1].MultId(1,2);
 	//rendExp[1].terms.push_back(Product(-1, 1, 3)); rendExp[1].terms.push_back(Product(3, 0, 2)); rendExp[1].terms[1].MultId(1,1);
@@ -365,11 +414,14 @@ int main()
 	{
 		for (int y = 0; y < 800; y++)
 		{
-			rendVal[0] = ((x/800.0f)-0.5f)*8.0f;
-			rendVal[1] = ((y/800.0f)-0.5f)*8.0f;
+			rendVal[0] = 2.0f*((x/800.0f)-0.5f)*4.0f;
+			rendVal[1] = 2.0f*((y/800.0f)-0.5f)*4.0f;
 			rendVal = NMnTom(rendExp, rendIds, rendVal);
 			//rendVal = NewtonFractalTest(rendVal);
-			std::vector<float> eval = SclEvalVec(rendExp, rendIds, rendVal);
+			Vector<float> eval = SclEvalVec(rendExp, rendIds, rendVal);
+			
+			//color by root
+			/*
 			int id = roots[0].size();
 			for (int i = 0; i < roots[0].size(); i++)
 			{
@@ -379,7 +431,7 @@ int main()
 					break;
 				}
 			}
-			if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1)
+			if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (isnan(eval[0]) || isnan(eval[1]) ))
 				id = -1;
 			if (id == roots[0].size())
 			{
@@ -387,21 +439,57 @@ int main()
 				roots[1].push_back(rendVal[1]);
 			}
 			rootAssoc[(800*x)+y] = id;
+			*/
+
+			//color by eval (comment NM)
+			/*float evalD = Dot(eval, eval); if (evalD < 0) evalD *= -1;
+			rootAssoc[(800*x)+y] = 0;
+			while (evalD > 0.001f)
+			{
+				rootAssoc[(800*x)+y]++;
+				evalD /= 1.5f;
+			}*/
+
+			//color by final position
+			//if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (isnan(eval[0]) || isnan(eval[1]) ))
+			//	rootAssoc[(800*x)+y] = -1;
+			if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 1.5f)
+				rootAssoc[(800*x)+y] = 0;
+			else if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 4.5f)
+				rootAssoc[(800*x)+y] = 1;
+			else if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 9.5f)
+				rootAssoc[(800*x)+y] = 2;
+			else
+				rootAssoc[(800*x)+y] = 3;
+			
 		}
 	}
-	for (int x = 0; x < 800; x++)
+
+	for (int y = 0; y < 800; y++)
 	{
-		for (int y = 0; y < 800; y++)
+		for (int x = 0; x < 800; x++)
 		{
-			switch (rootAssoc[(800*x)+y])
+			switch (rootAssoc[(800*x)+(800-1-y)])
 			{
-			default: rootTex[(800*4*x)+(y*4)+0] = 128; rootTex[(800*4*x)+(y*4)+1] = 128; rootTex[(800*4*x)+(y*4)+2] = 128; rootTex[(800*4*x)+(y*4)+3] = 255; break;
-			case 0: rootTex[(800*4*x)+(y*4)+0] = 255; rootTex[(800*4*x)+(y*4)+1] = 0; rootTex[(800*4*x)+(y*4)+2] = 0; rootTex[(800*4*x)+(y*4)+3] = 255; break;
-			case 1: rootTex[(800*4*x)+(y*4)+0] = 0; rootTex[(800*4*x)+(y*4)+1] = 255; rootTex[(800*4*x)+(y*4)+2] = 0; rootTex[(800*4*x)+(y*4)+3] = 255; break;
-			case 2: rootTex[(800*4*x)+(y*4)+0] = 0; rootTex[(800*4*x)+(y*4)+1] = 0; rootTex[(800*4*x)+(y*4)+2] = 255; rootTex[(800*4*x)+(y*4)+3] = 255; break;
-			case 3: rootTex[(800*4*x)+(y*4)+0] = 0; rootTex[(800*4*x)+(y*4)+1] = 255; rootTex[(800*4*x)+(y*4)+2] = 255; rootTex[(800*4*x)+(y*4)+3] = 255; break;
-			case 4: rootTex[(800*4*x)+(y*4)+0] = 255; rootTex[(800*4*x)+(y*4)+1] = 0; rootTex[(800*4*x)+(y*4)+2] = 255; rootTex[(800*4*x)+(y*4)+3] = 255; break;
-			case 5: rootTex[(800*4*x)+(y*4)+0] = 255; rootTex[(800*4*x)+(y*4)+1] = 255; rootTex[(800*4*x)+(y*4)+2] = 0; rootTex[(800*4*x)+(y*4)+3] = 255; break;
+			default: rootTex[(800*4*y)+(4*x)+0] = 128; rootTex[(800*4*y)+(4*x)+1] = 128; rootTex[(800*4*y)+(4*x)+2] = 128; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 0: rootTex[(800*4*y)+(4*x)+0] = 255; rootTex[(800*4*y)+(4*x)+1] = 0; rootTex[(800*4*y)+(4*x)+2] = 0; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 1: rootTex[(800*4*y)+(4*x)+0] = 0; rootTex[(800*4*y)+(4*x)+1] = 255; rootTex[(800*4*y)+(4*x)+2] = 0; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 2: rootTex[(800*4*y)+(4*x)+0] = 0; rootTex[(800*4*y)+(4*x)+1] = 0; rootTex[(800*4*y)+(4*x)+2] = 255; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 3: rootTex[(800*4*y)+(4*x)+0] = 0; rootTex[(800*4*y)+(4*x)+1] = 255; rootTex[(800*4*y)+(4*x)+2] = 255; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 4: rootTex[(800*4*y)+(4*x)+0] = 255; rootTex[(800*4*y)+(4*x)+1] = 0; rootTex[(800*4*y)+(4*x)+2] = 255; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 5: rootTex[(800*4*y)+(4*x)+0] = 255; rootTex[(800*4*y)+(4*x)+1] = 255; rootTex[(800*4*y)+(4*x)+2] = 0; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 6: rootTex[(800*4*y)+(4*x)+0] = 128; rootTex[(800*4*y)+(4*x)+1] = 0; rootTex[(800*4*y)+(4*x)+2] = 0; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 7: rootTex[(800*4*y)+(4*x)+0] = 0; rootTex[(800*4*y)+(4*x)+1] = 128; rootTex[(800*4*y)+(4*x)+2] = 0; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 8: rootTex[(800*4*y)+(4*x)+0] = 0; rootTex[(800*4*y)+(4*x)+1] = 0; rootTex[(800*4*y)+(4*x)+2] = 128; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 9: rootTex[(800*4*y)+(4*x)+0] = 0; rootTex[(800*4*y)+(4*x)+1] = 128; rootTex[(800*4*y)+(4*x)+2] = 128; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 10: rootTex[(800*4*y)+(4*x)+0] = 128; rootTex[(800*4*y)+(4*x)+1] = 0; rootTex[(800*4*y)+(4*x)+2] = 128; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 11: rootTex[(800*4*y)+(4*x)+0] = 128; rootTex[(800*4*y)+(4*x)+1] = 128; rootTex[(800*4*y)+(4*x)+2] = 0; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 12: rootTex[(800*4*y)+(4*x)+0] = 180; rootTex[(800*4*y)+(4*x)+1] = 60; rootTex[(800*4*y)+(4*x)+2] = 60; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 13: rootTex[(800*4*y)+(4*x)+0] = 60; rootTex[(800*4*y)+(4*x)+1] = 180; rootTex[(800*4*y)+(4*x)+2] = 60; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 14: rootTex[(800*4*y)+(4*x)+0] = 60; rootTex[(800*4*y)+(4*x)+1] = 60; rootTex[(800*4*y)+(4*x)+2] = 180; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 15: rootTex[(800*4*y)+(4*x)+0] = 60; rootTex[(800*4*y)+(4*x)+1] = 180; rootTex[(800*4*y)+(4*x)+2] = 180; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 16: rootTex[(800*4*y)+(4*x)+0] = 180; rootTex[(800*4*y)+(4*x)+1] = 60; rootTex[(800*4*y)+(4*x)+2] = 180; rootTex[(800*4*y)+(4*x)+3] = 255; break;
+			case 17: rootTex[(800*4*y)+(4*x)+0] = 180; rootTex[(800*4*y)+(4*x)+1] = 180; rootTex[(800*4*y)+(4*x)+2] = 60; rootTex[(800*4*y)+(4*x)+3] = 255; break;
 			}
 		}
 	}

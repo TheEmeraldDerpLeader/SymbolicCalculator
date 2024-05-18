@@ -6,6 +6,8 @@ class Vector2D;
 template<typename T>
 class VectorRef;
 template<typename T>
+class VectorOffRef;
+template<typename T>
 class Vector2DRef;
 
 
@@ -95,6 +97,14 @@ public:
 	{
 		return VectorRef<T>(height, this->data()+(height*x));
 	}
+	VectorOffRef<T> GetRow(int y)
+	{
+		return VectorOffRef<T>(width, height, this->data()+y);
+	}
+	const VectorOffRef<T> GetRow(int y) const
+	{
+		return VectorOffRef<T>(width, height, this->data()+y);
+	}
 };
 
 
@@ -125,6 +135,29 @@ public:
 
 	T& operator[](int index) { return data[index]; }
 	const T& operator[](int index) const { return data[index]; }
+
+	//Vector<T> operator*(const Vector2DRef<T>& v) const;
+};
+
+template<typename T>
+struct VectorOffRef
+{
+private:
+public:
+	int length = 0;
+	int offset = 1;
+	T* data = nullptr;
+	inline int size() const {return length;}
+
+	VectorOffRef(int lengthInt, int offsetInt, T* dataPtr)
+	{
+		length = lengthInt;
+		offset = offsetInt;
+		data = dataPtr;
+	}
+
+	T& operator[](int index) { return data[offset*index]; }
+	const T& operator[](int index) const { return data[offset*index]; }
 
 	//Vector<T> operator*(const Vector2DRef<T>& v) const;
 };
@@ -164,6 +197,14 @@ public:
 	const VectorRef<T> GetCol(int x) const
 	{
 		return VectorRef<T>(height, data+(height*x));
+	}
+	VectorOffRef<T> GetRow(int y)
+	{
+		return VectorOffRef<T>(width, height, data+y);
+	}
+	const VectorOffRef<T> GetRow(int y) const
+	{
+		return VectorOffRef<T>(width, height, data+y);
 	}
 };
 

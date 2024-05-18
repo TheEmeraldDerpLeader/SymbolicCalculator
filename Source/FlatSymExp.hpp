@@ -6,8 +6,8 @@
 #include <vector>
 
 //plan of action:
-//1. Evaluate flat (   this now)
-//2. Gradient of flat (find way to manage multidim FlatSymExp)
+//1. Evaluate flat (done)
+//2. Gradient of flat (done)
 //3. NM on flat
 
 //contains multiple exps btw
@@ -66,10 +66,15 @@ public:
 	FlatSymExp(const SymExp& exp);
 	FlatSymExp(const std::vector<SymExp>& exps);
 
+	FlatSymExp(FlatSymExp&& exp);
+	FlatSymExp& operator=(FlatSymExp&& exp);
+
 	void GenerateSymExp(SymExp& out);
 	void GenerateSymExps(std::vector<SymExp>& out);
 
 	std::vector<float> SclEval(const std::vector<int>& valIds, const std::vector<float>& values) const;
+
+	FlatSymExp Gradient() const;
 
 	void CopyData(char* newAddress);
 	~FlatSymExp() { if (data != nullptr) delete[] data; size = 0; capacity = 0; }

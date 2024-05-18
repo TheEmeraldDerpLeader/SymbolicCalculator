@@ -15,8 +15,9 @@ thread_local Vector<SymExp> _grad1D;
 thread_local Vector2D<SymExp> _grad2D;
 thread_local Vector<float> _gradEval1D;
 thread_local Vector2D<float> _gradEval2D;
-thread_local Vector2D<float> _orthoVBasis;
-thread_local Vector2D<float> _gradEvalOrthoBasis;
+thread_local Vector2D<float> _vBasis;
+thread_local Vector2D<float> _wBasis;
+thread_local Vector<float> _wDivForV;
 thread_local Vector<float> _eval;
 thread_local Vector<float> _change;
 thread_local Vector2D<float> _hold;
@@ -686,7 +687,7 @@ Vector2D<float> SclEvalVec2D(const Vector2D<SymExp>& exps, const std::vector<int
     return mov(hold);
 }
 
-std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, const std::vector<float> initial, const float threshold)
+std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, const std::vector<float> initial, const float threshold) //this algo is right I think
 {
     Vector<float>& testValue = _testValue; testValue = initial;
     Vector<float>& lastValue = _lastValue; lastValue = initial;
@@ -704,7 +705,7 @@ std::vector<float> NMnTo1(const SymExp& poly, const std::vector<int> valIds, con
 
         lastValue = testValue;
         float mult = eval/Dot(gradEval,gradEval);//P(x)/delP*delP
-        SubEq(testValue, Mul(gradEval,mult));
+        SubEq(testValue, Mul(gradEval,mult)); //creates new vec here :P
         //testValue.R() -= gradEval.R()*mult;
 
         Sub(testValue, lastValue, difVec);
@@ -725,13 +726,98 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
     float dif = threshold+1;
 
     Vector2D<SymExp>& grad = _grad2D; grad = Gradient(polys, valIds);
+    
+    int count = 0;
+    Vector2D<float>& gradEval = _gradEval2D; gradEval.SetDim(initial.size(), polys.size());
+    Vector2D<float>& vBasis = _vBasis; vBasis.SetDim(initial.size(),initial.size());
+    Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(initial.size(),polys.size());
+    Vector<float>& wDivForV = _wDivForV; wDivForV.resize(initial.size());
+    Vector<float>& eval = _eval; eval.resize(polys.size());
+    Vector<float>& change = _change; change = initial;
+    while (dif > threshold && dif < 250 && count < 80)
+    {
+        eval = SclEvalVec(polys, valIds, testValue);
+        gradEval = SclEvalVec2D(grad,valIds,testValue);
+
+        lastValue = testValue;
+
+        //transform gradEval into new basis with ortho wi (does not work, may need to reuse CoeffFromGramSchimidt, but try to use gradVs)
+        int vCount = 0;
+        for (int i = 0; i < polys.size() && vCount < initial.size(); i++) //i is the grad row used, vCount is the number of vis currently found
+        {
+            //calculate starting vi and wi
+            VectorRef<float> initialV = vBasis.GetCol(vCount);
+            for (int j = 0; j < initial.size(); j++)
+                initialV[j] = gradEval.At(j,i);
+            VectorRef<float> initialW = wBasis.GetCol(vCount);
+            for (int i = 0; i < polys.size(); i++)
+                initialW[i] = 0;
+
+            //calculate initialW from vs and ws
+            for (int i = 0; i < initial.size(); i++)
+            {
+                VectorRef<float> wTemp = gradEval.GetCol(i);
+                for (int j = 0; j < polys.size(); j++)
+                    initialW[j] += wTemp[j]*initialV[i];
+            }
+
+            //antiproject wi and vi
+            for (int i = vCount-1; i >= 0; i--)
+            {
+                VectorRef<float> antiV = vBasis.GetCol(i);
+                VectorRef<float> antiW = wBasis.GetCol(i);
+                float coeff = Dot(initialW, antiW) / wDivForV[i];
+                //project wi
+                for (int i = 0; i < polys.size(); i++)
+                    initialW[i] -= antiW[i]*coeff;
+                //project vi
+                for (int i = 0; i < initial.size(); i++)
+                    initialV[i] -= antiV[i]*coeff;
+            }
+            
+            wDivForV[vCount] = Dot(initialW, initialW);
+            //if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
+            if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+                vCount++;
+        }
+
+        //apply change
+        for (int i = 0; i < vCount; i++)
+        {
+            VectorRef<float> wi = wBasis.GetCol(i);
+            VectorRef<float> vi = vBasis.GetCol(i);
+            float coeff = Dot(eval, wi)/wDivForV[i];
+            for (int i = 0; i < initial.size(); i++)
+                testValue[i] -= coeff*vi[i];
+        }
+        
+
+        Sub(testValue, lastValue, difVec);
+        //difVec = testValue-lastValue;
+        dif = SumAbs(difVec);
+
+        count++;
+    }
+
+    return testValue;
+}
+
+//original, incorrect implementation. Might be identical to complex NM on applicable functions (confirmed for z^3 - 1 = 0)
+/*std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<int> valIds, const std::vector<float> initial, const float threshold)
+{
+    Vector<float>& testValue = _testValue; testValue = initial;
+    Vector<float>& lastValue = _lastValue; lastValue = initial;
+    Vector<float>& difVec = _difVec; difVec = initial;
+    float dif = threshold+1;
+
+    Vector2D<SymExp>& grad = _grad2D; grad = Gradient(polys, valIds);
 
     int count = 0;
     Vector2D<float>& gradEval = _gradEval2D; gradEval.SetDim(grad.width, grad.height);
     Vector2D<float>& orthoVBasis = _orthoVBasis; orthoVBasis.SetDim(initial.size(), initial.size());
     Vector2D<float>& gradEvalOrthoBasis = _gradEvalOrthoBasis; gradEvalOrthoBasis.SetDim(grad.width, grad.height);
     Vector<float>& eval = _eval; eval.resize(polys.size());
-    Vector<float>& change = _change; change = initial; //should staticify these variables and add descriptions
+    Vector<float>& change = _change; change = initial;
     while (dif > threshold && dif < 250 && count < 80)
     {
         eval = SclEvalVec(polys, valIds, testValue);
@@ -740,9 +826,14 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
 
         lastValue = testValue;
         
+        err //algor is wrong, can't handle x^2 + y^2 - 1 = 0 , 0 = 0
+            //smth to do with <P(x)*proj(delP)_vi / (proj(delP)_vi)^2>, specifically proj part 
         for (int i = 0; i < initial.size(); i++) //calculate change in orthobasis
-            //change[i] = eval.Dot(gradEvalOrthoBasis.GetCol(i))/gradEvalOrthoBasis.GetCol(i).Dot(gradEvalOrthoBasis.GetCol(i));
-            change[i] = Dot(eval,gradEvalOrthoBasis.GetCol(i))/Dot(gradEvalOrthoBasis.GetCol(i),gradEvalOrthoBasis.GetCol(i));
+        {
+            change[i] = Dot(eval, gradEvalOrthoBasis.GetCol(i))/Dot(gradEvalOrthoBasis.GetCol(i), gradEvalOrthoBasis.GetCol(i));
+            //if (isnan(change[i])) nans could happen in CoeffFromGramSchimdt
+            //    change[i] = 0;
+        }
 
         for (int i = initial.size()-1; i >= 0; i--) //transform change into original basis
             for (int j = i+1; j < initial.size(); j++)
@@ -759,7 +850,7 @@ std::vector<float> NMnTom(const std::vector<SymExp>& polys, const std::vector<in
     }
 
     return testValue;
-}
+}*/
 
 //name technically describes how function works, but not it's intent lol
 Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>& outNewMap) { return CoeffFromGramSchmidt(vecMap, &outNewMap); }
@@ -771,7 +862,7 @@ Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<flo
     for (int i = 0; i < hold.width; i++) //get equation for each coord (equivalently, set vecs in new map such that all are ortho to column i)
     {
         hold.At(i,i) = 1; //when going from x' to x, xi = 1x'i + m1x(i+1) + ...
-        VectorRef<float> vi = newMap.GetCol(i); //shouldn't copy vecs, should use ptr to location
+        VectorRef<float> vi = newMap.GetCol(i);
         float div = Dot(vi,vi);
         for (int j = i+1; j < hold.height; j++) //apply Gram-schidt to all vectors in terms of vi
         { //technically gram schmidt is typically done by iterating on each vector then past vectors instead of each vector then future vectors, but it is identical, just moving computation around
@@ -796,8 +887,9 @@ void ResetGlobals()
     _grad2D = Vector<SymExp>(); _grad2D.shrink_to_fit();
     _gradEval1D = Vector<float>(); _gradEval1D.shrink_to_fit();
     _gradEval2D = Vector2D<float>(); _gradEval2D.shrink_to_fit();
-    _orthoVBasis = Vector<float>(); _orthoVBasis.shrink_to_fit();
-    _gradEvalOrthoBasis = Vector<float>(); _gradEvalOrthoBasis.shrink_to_fit();
+    _vBasis = Vector<float>(); _vBasis.shrink_to_fit();
+    _wBasis = Vector2D<float>(); _wBasis.shrink_to_fit();
+    _wDivForV = Vector<float>(); _wDivForV.shrink_to_fit();
     _eval = Vector<float>(); _eval.shrink_to_fit();
     _change = Vector<float>(); _change.shrink_to_fit();
     _hold = Vector2D<float>(); _hold.shrink_to_fit();
