@@ -233,6 +233,159 @@ std::vector<float> FlatSymExp::SclEval(std::vector<int>& valIds, std::vector<flo
 	return hold;
 }
 
+std::vector<float> FlatSymExp::SclEval(std::vector<float>& values)
+{
+	std::vector<float> hold;
+
+	int expC = expCount();
+	hold.resize(expC);
+	if (values.size() < idCount())
+	{
+		for (int i = 0; i < expC; i++)
+			hold[i] = 0;
+		return hold;
+	}
+
+	unsigned char* bufIndex = data+expIndex(0);
+
+	for (int i = 0; i < expC; i++)
+	{
+		hold[i] = fR(bufIndex);
+		int prodCount = iR(bufIndex);
+
+		for (int j = 0; j < prodCount; j++)
+		{
+			float prodVal = fR(bufIndex);
+			int facCount = iR(bufIndex);
+
+			for (int k = 0; k < facCount; k++)
+			{
+				float facVal = values[iR(bufIndex)];
+				int pow = iR(bufIndex);
+				for (int p = 0; p < pow; p++)
+					prodVal *= facVal;
+			}
+
+			hold[i] += prodVal;
+		}
+	}
+
+	return hold;
+}
+
+
+std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vector<int>& valIds, std::vector<float>& initial, float threshold)
+{
+	std::vector<float> hold;
+	std::vector<float> coords;
+
+
+	int expC = expCount();
+	hold.resize(expC);
+
+	coords.resize(idCount());
+	for (int i = 0; i < coords.size(); i++)
+	{
+		int index = BinSearch(valIds, idKey(i));
+		if (index == valIds.size() || valIds[index] != idKey(i))
+			continue;
+		else
+			coords[i] = initial[index];
+	}
+
+	return NewtonsMethodSolve(gradient, coords, threshold);
+}
+
+static thread_local Vector<float> _testValue;
+static thread_local Vector<float> _lastValue;
+static thread_local Vector2D<float> _gradEval;
+static thread_local Vector2D<float> _vBasis;
+static thread_local Vector2D<float> _wBasis;
+static thread_local Vector<float> _wDivForV;
+static thread_local Vector<float> _eval;
+
+std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vector<float>& initial, float threshold)
+{
+	//need a direct eval function
+	int idC = initial.size();
+	int expC = expCount();
+	Vector<float>& testValue = _testValue; testValue = initial;
+	Vector<float>& lastValue = _lastValue; lastValue.resize(idC);
+	float dif = threshold+1;
+
+	int count = 0;
+	Vector2D<float>& gradEval = _gradEval; gradEval.SetDim(idC, expC);
+	Vector2D<float>& vBasis = _vBasis; vBasis.SetDim(idC,idC);
+	Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(idC,expC);
+	Vector<float>& wDivForV = _wDivForV; wDivForV.resize(idC);
+	Vector<float>& eval = _eval; eval.resize(expC);
+	while (dif > threshold && dif < 250 && count < 80)
+	{
+		eval = SclEval(testValue);
+		gradEval = gradient.SclEval(testValue);
+
+		lastValue = testValue;
+
+		//transform gradEval into new basis with ortho wi
+		int vCount = 0;
+		for (int i = 0; i < expC && vCount < idC; i++) //i is the grad row used, vCount is the number of vis currently found
+		{
+			//calculate starting vi and wi
+			VectorRef<float> initialV = vBasis.GetCol(vCount);
+			for (int j = 0; j < idC; j++)
+				initialV[j] = gradEval.At(j,i);
+			VectorRef<float> initialW = wBasis.GetCol(vCount);
+			for (int i = 0; i < expC; i++)
+				initialW[i] = 0;
+
+			//calculate initialW from vs and ws
+			for (int i = 0; i < idC; i++)
+			{
+				VectorRef<float> wTemp = gradEval.GetCol(i);
+				for (int j = 0; j < expC; j++)
+					initialW[j] += wTemp[j]*initialV[i];
+			}
+
+			//antiproject wi and vi
+			for (int i = vCount-1; i >= 0; i--)
+			{
+				VectorRef<float> antiV = vBasis.GetCol(i);
+				VectorRef<float> antiW = wBasis.GetCol(i);
+				float coeff = Dot(initialW, antiW) / wDivForV[i];
+				//project wi
+				for (int i = 0; i < expC; i++)
+					initialW[i] -= antiW[i]*coeff;
+				//project vi
+				for (int i = 0; i < idC; i++)
+					initialV[i] -= antiV[i]*coeff;
+			}
+
+			wDivForV[vCount] = Dot(initialW, initialW);
+			//if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
+			if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+				vCount++;
+		}
+
+		//apply change
+		for (int i = 0; i < vCount; i++)
+		{
+			VectorRef<float> wi = wBasis.GetCol(i);
+			VectorRef<float> vi = vBasis.GetCol(i);
+			float coeff = Dot(eval, wi)/wDivForV[i];
+			for (int i = 0; i < idC; i++)
+				testValue[i] -= coeff*vi[i];
+		}
+
+		dif = 0;
+		for (int i = 0; i < idC; i++)
+			dif += std::abs(testValue[i]-lastValue[i]);
+
+		count++;
+	}
+
+	return testValue;
+}
+
 FlatSymExp FlatSymExp::Gradient()
 {
 	int idC = idCount();
@@ -357,5 +510,17 @@ FlatSymExp FlatSymExp::Gradient()
 	return mov(f);
 }
 
-#undef float
 
+void FlatSymExpResetGlobals()
+{
+	//NewtonsMethodSolve
+	_testValue = Vector<float>(); _testValue.shrink_to_fit();
+	_lastValue = Vector<float>(); _lastValue.shrink_to_fit();
+	_gradEval = Vector2D<float>(); _gradEval.shrink_to_fit();
+	_vBasis = Vector2D<float>(); _vBasis.shrink_to_fit();
+	_wBasis = Vector2D<float>(); _wBasis.shrink_to_fit();
+	_wDivForV = Vector<float>(); _wDivForV.shrink_to_fit();
+	_eval = Vector<float>(); _eval.shrink_to_fit();
+}
+
+#undef float

@@ -411,16 +411,23 @@ int main()
 	std::cout << rendExp[0].ToString() << '\n';
 	std::cout << rendExp[1].ToString() << '\n';
 
+	FlatSymExp rendFlat(rendExp);
+	FlatSymExp rendGradFlat(rendFlat.Gradient());
+
 	for (int x = 0; x < 800; x++)
 	{
 		for (int y = 0; y < 800; y++)
 		{
 			rendVal[0] = 2.0f*((x/800.0f)-0.5f)*4.0f;
 			rendVal[1] = 2.0f*((y/800.0f)-0.5f)*4.0f;
-			rendVal = NMnTom(rendExp, rendIds, rendVal);
-			//rendVal = NewtonFractalTest(rendVal);
-			Vector<float> eval = SclEvalVec(rendExp, rendIds, rendVal);
+
+			//rendVal = NMnTom(rendExp, rendIds, rendVal);
+			///rendVal = NewtonFractalTest(rendVal);
+			//Vector<float> eval = SclEvalVec(rendExp, rendIds, rendVal);
 			
+			rendVal = rendFlat.NewtonsMethodSolve(rendGradFlat, rendVal);
+			Vector<float> eval = rendFlat.SclEval(rendVal);
+
 			//color by final position
 			//if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (isnan(eval[0]) || isnan(eval[1]) ))
 			//	rootAssoc[(800*x)+y] = -1;

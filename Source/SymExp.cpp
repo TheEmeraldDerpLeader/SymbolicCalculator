@@ -8,21 +8,21 @@
 template<typename T>
 inline T&& mov(T& t) { return reinterpret_cast<T&&>(t); }
 
-thread_local Vector<float> _testValue;
-thread_local Vector<float> _lastValue;
-thread_local Vector<float> _difVec;
-thread_local Vector<SymExp> _grad1D;
-thread_local Vector2D<SymExp> _grad2D;
-thread_local Vector<float> _gradEval1D;
-thread_local Vector2D<float> _gradEval2D;
-thread_local Vector2D<float> _vBasis;
-thread_local Vector2D<float> _wBasis;
-thread_local Vector<float> _wDivForV;
-thread_local Vector<float> _eval;
-//thread_local Vector2D<float> _hold;
-//thread_local Vector2D<float> _newMap;
-thread_local std::vector<Product> _prodGrad;
-thread_local std::vector<SymExp> _expGrad;
+static thread_local Vector<float> _testValue;
+static thread_local Vector<float> _lastValue;
+static thread_local Vector<float> _difVec;
+static thread_local Vector<SymExp> _grad1D;
+static thread_local Vector2D<SymExp> _grad2D;
+static thread_local Vector<float> _gradEval1D;
+static thread_local Vector2D<float> _gradEval2D;
+static thread_local Vector2D<float> _vBasis;
+static thread_local Vector2D<float> _wBasis;
+static thread_local Vector<float> _wDivForV;
+static thread_local Vector<float> _eval;
+//static thread_local Vector2D<float> _hold;
+//static thread_local Vector2D<float> _newMap;
+static thread_local std::vector<Product> _prodGrad;
+static thread_local std::vector<SymExp> _expGrad;
 
 
 int BinSearch(std::vector<int>& vec, int val) //value at index is greater than or equal to val, can return index of vec.size()
@@ -894,7 +894,7 @@ Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<flo
 }
 */
 
-void ResetGlobals()
+void SymExpResetGlobals()
 {
     _testValue = Vector<float>(); _testValue.shrink_to_fit();
     _lastValue = Vector<float>(); _lastValue.shrink_to_fit();

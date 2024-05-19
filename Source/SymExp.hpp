@@ -13,10 +13,8 @@
 /*
 Putting this here for later:
 
-How to easily use const with these classes
-
-#define uc(o) const_cast<decltype(o)&>(o)
-
+Better idea: API compatibility classes like SymExpAPI with a SymExp and wrappers for each function, correctly marked as const, but const_casts where applicable
+This also hides a lot of dev stuff anyway (unimplemented functions)
 */
 
 class SymExp;
@@ -145,7 +143,7 @@ Note that return value shouldn't be treated like a matrix nor a vector of vector
 //Vector2D<float> CoeffFromGramSchmidt(const Vector2D<float>& vecMap, Vector2D<float>* outNewMap);
 
 //resets thread_local variables used for NM and CoeffFromGramSchmidt
-void ResetGlobals();
+void SymExpResetGlobals();
 
 /* std::vector<SymExp> ComplexPoly(const SymExp exp); //Calculates the sytem that represents generalizing a polynomial on reals to a polynomial on complex numbers
 std::vector<SymExp> ComplexPoly(const SymExp exp, SymParser& parse);
