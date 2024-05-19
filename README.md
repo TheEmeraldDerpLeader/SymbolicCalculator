@@ -12,13 +12,18 @@ Represent polynomials (i.e. symbolic expressions) with SymExp objects, which are
 
 - Using generalized Newton's method to find zeros of a expression or vector of expressions (to represent a system of polynomials) with quadratic convergence near roots
 
+- Flattened SymExp structure to more efficiently evaluate, calculate gradient, and use Newton's Method on (currently only supports converting from unflattened to flattened)
+
 - Displaying the fractals that result from Newton's method using SFML and textures
 
 ## Future Features
 
-My current focus is on flattening SymExp into a class that stores all data in a single region of memory. Currently SymExp uses vectors of vectors, throwing in another vector when you need multiple SymExps to represent a system. All of this means a substantial amount of computation time for evaluation is spent on memory calls rather than computation, which moving everything into a single dynamic array should hopefully reduce, allowing for faster generation of fractals. After this, I plan to port the code over to OpenCL, allowing for SymExp evaluation on GPUs. To make this simple, the FlatSymExp class will be designed in a way that would easily port over to C.
+- Porting over FlatSymExp to OpenCL to allow for parallel computation of Newton's Method for pixels.
 
+- Moving and zooming in on fractal.
+
+- Basic API headers and documentation to facilitate inclusion in other projects
 
 <img src="Images/Fractal4DegTwoVar.png" alt="Fractal comparable to Newton's Fractal" width="400" height="400">
 
-Example of a fractal resulting from the convergence of generalized Newton's Method applied to a a system of two random two variable, 4th order polynomials
+Example of a fractal resulting from the convergence of generalized Newton's Method applied to a system of two random two variable, 4th order polynomials.
