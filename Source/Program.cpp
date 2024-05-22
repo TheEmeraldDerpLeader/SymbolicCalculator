@@ -4,6 +4,8 @@
 #include "Helpers.hpp"
 #include "SFMLRenderer.hpp"
 
+#include "FlatSymExpOpenCL.hpp"
+
 #include <iostream>
 #include <vector>
 
@@ -99,6 +101,7 @@ std::vector<float> NewtonFractalTest(std::vector<float> initial, float threshold
 
 int main()
 {
+
 	/*SymParser sp; sp.Add(0,"a1"); sp.Add(1,"a2"); sp.Add(2,"a3"); sp.Add(3,"a4"); sp.Add(4,"a5"); sp.Add(5,"b1"); sp.Add(6,"b2"); sp.Add(7,"b3"); sp.Add(8,"b4"); sp.Add(9,"b5");
 	sp.Add(10,"c1"); sp.Add(11,"c2"); sp.Add(12,"c3"); sp.Add(13,"c4"); sp.Add(14,"c5"); sp.Add(15,"d1"); sp.Add(16,"d2"); sp.Add(17,"d3"); sp.Add(18,"d4"); sp.Add(19,"d5");
 	sp.Add(20,"f1"); sp.Add(21,"f2"); sp.Add(22,"f3"); sp.Add(23,"f4"); sp.Add(24,"f5");
@@ -413,6 +416,25 @@ int main()
 
 	FlatSymExp rendFlat(rendExp);
 	FlatSymExp rendGradFlat(rendFlat.Gradient());
+
+	std::vector<float> coordsIn;
+	std::vector<float> coordsOut;
+	coordsIn.resize(800*800*2);
+	coordsOut.resize(800*800*2);
+	for (int x = 0; x < 800; x++)
+	{
+		for (int y = 0; y < 800; y++)
+		{
+			coordsIn[(x*800*2)+(y*2)+0] = 2.0f*((x/800.0f)-0.5f)*4.0f;
+			coordsIn[(x*800*2)+(y*2)+1] = 2.0f*((y/800.0f)-0.5f)*4.0f;
+		}
+	}
+
+	std::vector<cl::Platform> platforms;
+	std::vector<std::vector<cl::Device>> devices;
+	QueryDevices(platforms,devices);
+	FlatKernelExecutor fke(devices[0][0]);
+	fke.Execute(rendFlat, rendGradFlat, 800*800, coordsIn.data(), coordsOut.data());
 
 	for (int x = 0; x < 800; x++)
 	{

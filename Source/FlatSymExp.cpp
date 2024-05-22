@@ -319,7 +319,7 @@ std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vec
 	Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(idC,expC);
 	Vector<float>& wDivForV = _wDivForV; wDivForV.resize(idC);
 	Vector<float>& eval = _eval; eval.resize(expC);
-	while (dif > threshold && dif < 250 && count < 80)
+	while (dif > threshold && dif < 250000 && count < 800)
 	{
 		eval = SclEval(testValue);
 		gradEval = gradient.SclEval(testValue);

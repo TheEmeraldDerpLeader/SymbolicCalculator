@@ -15,6 +15,7 @@ Putting this here for later:
 
 Better idea: API compatibility classes like SymExpAPI with a SymExp and wrappers for each function, correctly marked as const, but const_casts where applicable
 This also hides a lot of dev stuff anyway (unimplemented functions)
+Lazy Idea: users can just mark SymExp members as mutable
 */
 
 class SymExp;
