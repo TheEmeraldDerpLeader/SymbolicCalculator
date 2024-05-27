@@ -180,4 +180,7 @@ std::string FloatToString(float& floatRef);
 
 int BinSearch(std::vector<int>& vec, int val);
 int BinSearch(std::vector<int>& vec, int lower, int upper, int val);
+
+SymExp GenRandomPoly(int varCount, int maxP, float range);
+
 #undef float

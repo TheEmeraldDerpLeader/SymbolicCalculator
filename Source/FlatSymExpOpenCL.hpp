@@ -34,14 +34,26 @@ public:
 
 	cl::Buffer flatSymData;
 	cl::Buffer gradientData;
-	cl::Buffer inCoords;
-	cl::Buffer outCoords;
-
-	size_t workGroupSize = 0;
+	cl::Buffer inCoordsBuf;
+	cl::Buffer rootsBuf;
+	cl::Buffer outCoordsBuf;
+	cl::Buffer itersBuf;
+	cl::Buffer idsBuf;
+	cl::Buffer indexesBuf;
+	cl::Buffer initialBuf;
+	cl::Buffer base1Buf;
+	cl::Buffer base2Buf;
+	cl::Buffer texBuf;
 
 	FlatKernelExecutor(cl::Device& deviceRef);
 
-	void Execute(FlatSymExp& flat, FlatSymExp& grad, int coordsCount, float* in, float* out, float threshold = 0.00001f, int maxIter = 80);
+	void InitializeBuffers(int flatSize, int gradSize, int width, int height, int idC, int rootC, int checkCount);
+
+	void RunNMnTom(FlatSymExp& flat, FlatSymExp& grad, int coordsCount, float* in, float* out, int* outIters, float threshold = 0.00001f, int maxIter = 80);
+	void RunNMnTomRect(FlatSymExp& flat, FlatSymExp& grad, int coordsX, int cooordsY, float* initial, float* base1, float* base2, float* out, int* outIters, float threshold = 0.00001f, int maxIter = 80);
+	void RunAssociateCoords(int coordsCount, int idC, int rootC, float* outCoords, float* roots, int* iters, int* ids);
+	void RunFindNewRoots(int checkCount, int* ids, int* indexes, int checkSpan, int checkOffset);
+	void RunColorTex(int coordsCount, int* ids, int* iters, unsigned char* tex);
 };
 
 

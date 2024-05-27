@@ -16,11 +16,11 @@ Represent polynomials (i.e. symbolic expressions) with SymExp objects, which are
 
 - Displaying the fractals that result from Newton's method using SFML and textures
 
+- OpenCL support to compute Newton's method on FlatSymExps on devices that support OpenCL. Allows for rapid parallel computation.
+
 ## Future Features
 
-- Porting over FlatSymExp to OpenCL to allow for parallel computation of Newton's Method for pixels.
-
-- Moving and zooming in on fractal.
+- Building, documentation, etc...
 
 - Basic API headers and documentation to facilitate inclusion in other projects
 

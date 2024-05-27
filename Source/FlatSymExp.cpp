@@ -273,6 +273,41 @@ std::vector<float> FlatSymExp::SclEval(std::vector<float>& values)
 	return hold;
 }
 
+void FlatSymExp::SclEval(std::vector<float>& values, std::vector<float>& out)
+{
+	int expC = expCount();
+	out.clear();
+	out.resize(expC);
+	if (values.size() < idCount())
+	{
+		for (int i = 0; i < expC; i++)
+			out[i] = 0;
+	}
+
+	unsigned char* bufIndex = data+expIndex(0);
+
+	for (int i = 0; i < expC; i++)
+	{
+		out[i] = fR(bufIndex);
+		int prodCount = iR(bufIndex);
+
+		for (int j = 0; j < prodCount; j++)
+		{
+			float prodVal = fR(bufIndex);
+			int facCount = iR(bufIndex);
+
+			for (int k = 0; k < facCount; k++)
+			{
+				float facVal = values[iR(bufIndex)];
+				int pow = iR(bufIndex);
+				for (int p = 0; p < pow; p++)
+					prodVal *= facVal;
+			}
+
+			out[i] += prodVal;
+		}
+	}
+}
 
 std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vector<int>& valIds, std::vector<float>& initial, float threshold)
 {
@@ -306,7 +341,6 @@ static thread_local Vector<float> _eval;
 
 std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vector<float>& initial, float threshold)
 {
-	//need a direct eval function
 	int idC = initial.size();
 	int expC = expCount();
 	Vector<float>& testValue = _testValue; testValue = initial;
@@ -316,10 +350,10 @@ std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vec
 	int count = 0;
 	Vector2D<float>& gradEval = _gradEval; gradEval.SetDim(idC, expC);
 	Vector2D<float>& vBasis = _vBasis; vBasis.SetDim(idC,idC);
-	Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(idC,expC);
+	Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(expC,expC);
 	Vector<float>& wDivForV = _wDivForV; wDivForV.resize(idC);
 	Vector<float>& eval = _eval; eval.resize(expC);
-	while (dif > threshold && dif < 250000 && count < 800)
+	while (dif > threshold && dif < 2500000 && count < 80)
 	{
 		eval = SclEval(testValue);
 		gradEval = gradient.SclEval(testValue);

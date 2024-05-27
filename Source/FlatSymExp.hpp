@@ -71,6 +71,7 @@ public:
 
 	std::vector<float> SclEval(std::vector<int>& valIds, std::vector<float>& values);
 	std::vector<float> SclEval(std::vector<float>& values);
+	void SclEval(std::vector<float>& values, std::vector<float>& out);
 
 	std::vector<float> NewtonsMethodSolve(FlatSymExp& gradient, std::vector<int>& valIds, std::vector<float>& initial, float threshold = 0.00001); //ids without match in valIds default to float()
 	std::vector<float> NewtonsMethodSolve(FlatSymExp& gradient, std::vector<float>& initial, float threshold = 0.00001);

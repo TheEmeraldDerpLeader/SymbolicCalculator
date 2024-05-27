@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <Helpers.hpp>
 
 #define float float
 
@@ -1155,3 +1156,45 @@ std::string FloatToString(float& floatRef)
     hStream << std::setprecision(5+i) << floatRef;
     return hStream.str();
 }
+
+SymExp GenRandomPoly(int varCount, int maxP, float range)
+{
+    SymExp hold = SymExp(randF(-range, range));
+    if (varCount <= 0)
+        return hold;
+    std::vector<int> pows; for (int i = 0; i < varCount; i++) pows.push_back(0);
+    for (int p = 1; p <= maxP; p++)
+    {
+        pows[0] = p;
+        while (true)
+        {
+            Product prod(randF(-range, range));
+            for (int i = 0; i < varCount; i++)
+            {
+                if (pows[i] == 0)
+                    continue;
+                prod.MultId(i, pows[i]);
+            }
+            hold.terms.push_back(prod);
+
+            int grabma = pows[varCount-1]+1;
+            pows[varCount-1] = 0;
+            for (int i = varCount-2; i >= 0; i--)
+            {
+                if (pows[i] != 0)
+                {
+                    pows[i]--;
+                    pows[i+1] += grabma;
+                    grabma = -1;
+                    break;
+                }
+            }
+            if (grabma != -1)
+                break;
+        }
+    }
+    return hold;
+
+}
+
+#undef float

@@ -2,7 +2,7 @@
 void SclEval(global uchar* flatSym,  local float* coords, local float* out, int expC, int idC);
 
 kernel void NMnTom(global uchar* flatSym, global uchar* gradient, 
-    global float* inCoords, global float* outCoords,
+    global float* inCoords, global float* outCoords, global int* outIter,
     local float* testValueBuf, local float* lastValueBuf,
     local float* evalBuf, local float* gradEvalBuf,
     local float* vBasisBuf, local float* wBasisBuf, local float* wDivForVBuf,
@@ -13,19 +13,219 @@ kernel void NMnTom(global uchar* flatSym, global uchar* gradient,
     local float* testValue = testValueBuf+(idC*localId);
     local float* lastValue = lastValueBuf+(idC*localId);
     local float* eval = evalBuf+(expC*localId);
-    local float* gradEval = gradEvalBuf+(expC*idC*localId);
+    local float* gradEval = gradEvalBuf+(idC*expC*localId);
     local float* vBasis = vBasisBuf+(idC*idC*localId);
-    local float* wBasis = wBasisBuf+(idC*expC*localId);
-    local float* wDivForV = wDivForV+(idC*localId);
+    local float* wBasis = wBasisBuf+(expC*expC*localId);
+    local float* wDivForV = wDivForVBuf+(idC*localId);
 
     for (int i = 0; i < idC; i++)
         testValue[i] = inCoords[(get_global_id(0)*idC)+i];
 
-    //SclEval works
-    SclEval(flatSym, testValue, eval, expC, idC);   
+    float dif = threshold+1;
+    float evalSum = 0;
+    int count = 0;
+    bool success = false;
+    while (dif < 2500000 && count < maxCount)
+    {
+        SclEval(flatSym, testValue, eval, expC, idC);
+        SclEval(gradient, testValue, gradEval, idC*expC, idC);
+
+        for (int i = 0; i < idC; i++)
+            lastValue[i] = testValue[i];
+
+        //transform gradEval into new basis with ortho wi
+        int vCount = 0;
+        for (int i = 0; i < expC && vCount < idC; i++) //i is the grad row used, vCount is the number of vis currently found
+        {
+            //calculate starting vi and wi
+            local float* initialV = vBasis+(vCount*idC);
+            for (int j = 0; j < idC; j++)
+                initialV[j] = gradEval[(j*expC)+i];
+            local float* initialW = wBasis+(vCount*expC);
+            for (int i = 0; i < expC; i++)
+                initialW[i] = 0;
+
+            //calculate initialW from vs and ws
+            for (int i = 0; i < idC; i++)
+            {
+                local float* wTemp = gradEval+(i*expC);
+                for (int j = 0; j < expC; j++)
+                    initialW[j] += wTemp[j]*initialV[i];
+            }
+
+            //antiproject wi and vi
+            for (int i = vCount-1; i >= 0; i--)
+            {
+                local float* antiV = vBasis+(i*idC);
+                local float* antiW = wBasis+(i*expC);
+                float coeff = 0;
+                for (int i = 0; i < expC; i++)
+                    coeff += initialW[i]*antiW[i];
+                coeff /= wDivForV[i];
+                //project wi
+                for (int i = 0; i < expC; i++)
+                    initialW[i] -= antiW[i]*coeff;
+                //project vi
+                for (int i = 0; i < idC; i++)
+                    initialV[i] -= antiV[i]*coeff;
+            }
+
+            wDivForV[vCount] = 0;
+            for (int i = 0; i < expC; i++)
+                wDivForV[vCount] += initialW[i]*initialW[i];
+            //if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
+            if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+                vCount++;
+        }
+
+        //apply change
+        for (int i = 0; i < vCount; i++)
+        {
+            local float* wi = wBasis+(i*expC);
+            local float* vi = vBasis+(i*idC);
+            float coeff = 0;
+            for (int i = 0; i < expC; i++)
+                coeff += eval[i]*wi[i];
+            coeff /= wDivForV[i];
+            for (int i = 0; i < idC; i++)
+                testValue[i] -= coeff*vi[i];
+        }
+
+        dif = 0;
+        for (int i = 0; i < idC; i++)
+            dif += fabs(testValue[i]-lastValue[i]);
+        evalSum = 0;
+        for (int i = 0; i < expC; i++)
+            evalSum += fabs(eval[i]);
+        
+        if (dif <= threshold && evalSum <= 0.01)
+        {
+            success = true;
+            break;
+        }
+        count++;
+    }
+
+    if (success == false)
+        count = -1;
+
+    outIter[get_global_id(0)] = count;
+    for (int i = 0; i < idC; i++)
+        outCoords[(get_global_id(0)*idC)+i] = testValue[i];
+}
+
+kernel void NMnTomRect(global uchar* flatSym, global uchar* gradient, 
+    global float* initial, global float* base1, global float* base2, global float* outCoords, global int* outIter,
+    local float* testValueBuf, local float* lastValueBuf,
+    local float* evalBuf, local float* gradEvalBuf,
+    local float* vBasisBuf, local float* wBasisBuf, local float* wDivForVBuf,
+    float threshold, int maxCount, int expC, int idC, int width, int height)
+{
+    //setup local vectors
+    int localId = get_local_id(0);
+    local float* testValue = testValueBuf+(idC*localId);
+    local float* lastValue = lastValueBuf+(idC*localId);
+    local float* eval = evalBuf+(expC*localId);
+    local float* gradEval = gradEvalBuf+(idC*expC*localId);
+    local float* vBasis = vBasisBuf+(idC*idC*localId);
+    local float* wBasis = wBasisBuf+(expC*expC*localId);
+    local float* wDivForV = wDivForVBuf+(idC*localId);
 
     for (int i = 0; i < idC; i++)
-        outCoords[(get_global_id(0)*idC)+i] = eval[i];
+        testValue[i] = initial[i]+(base1[i]*(get_global_id(0)%width))+(base2[i]*(height-(get_global_id(0)/width)));
+
+    float dif = threshold+1;
+    float evalSum = 0;
+    int count = 0;
+    bool success = false;
+    while (dif < 2500000 && count < maxCount)
+    {
+        SclEval(flatSym, testValue, eval, expC, idC);
+        SclEval(gradient, testValue, gradEval, idC*expC, idC);
+
+        for (int i = 0; i < idC; i++)
+            lastValue[i] = testValue[i];
+
+        //transform gradEval into new basis with ortho wi
+        int vCount = 0;
+        for (int i = 0; i < expC && vCount < idC; i++) //i is the grad row used, vCount is the number of vis currently found
+        {
+            //calculate starting vi and wi
+            local float* initialV = vBasis+(vCount*idC);
+            for (int j = 0; j < idC; j++)
+                initialV[j] = gradEval[(j*expC)+i];
+            local float* initialW = wBasis+(vCount*expC);
+            for (int i = 0; i < expC; i++)
+                initialW[i] = 0;
+
+            //calculate initialW from vs and ws
+            for (int i = 0; i < idC; i++)
+            {
+                local float* wTemp = gradEval+(i*expC);
+                for (int j = 0; j < expC; j++)
+                    initialW[j] += wTemp[j]*initialV[i];
+            }
+
+            //antiproject wi and vi
+            for (int i = vCount-1; i >= 0; i--)
+            {
+                local float* antiV = vBasis+(i*idC);
+                local float* antiW = wBasis+(i*expC);
+                float coeff = 0;
+                for (int i = 0; i < expC; i++)
+                    coeff += initialW[i]*antiW[i];
+                coeff /= wDivForV[i];
+                //project wi
+                for (int i = 0; i < expC; i++)
+                    initialW[i] -= antiW[i]*coeff;
+                //project vi
+                for (int i = 0; i < idC; i++)
+                    initialV[i] -= antiV[i]*coeff;
+            }
+
+            wDivForV[vCount] = 0;
+            for (int i = 0; i < expC; i++)
+                wDivForV[vCount] += initialW[i]*initialW[i];
+            //if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
+            if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+                vCount++;
+        }
+
+        //apply change
+        for (int i = 0; i < vCount; i++)
+        {
+            local float* wi = wBasis+(i*expC);
+            local float* vi = vBasis+(i*idC);
+            float coeff = 0;
+            for (int i = 0; i < expC; i++)
+                coeff += eval[i]*wi[i];
+            coeff /= wDivForV[i];
+            for (int i = 0; i < idC; i++)
+                testValue[i] -= coeff*vi[i];
+        }
+
+        dif = 0;
+        for (int i = 0; i < idC; i++)
+            dif += fabs(testValue[i]-lastValue[i]);
+        evalSum = 0;
+        for (int i = 0; i < expC; i++)
+            evalSum += fabs(eval[i]);
+
+        if (dif <= threshold && evalSum <= 0.01)
+        {
+            success = true;
+            break;
+        }
+
+        count++;
+    }
+
+    if (success == false)
+        count = -1;
+
+    outIter[get_global_id(0)] = count;
+    for (int i = 0; i < idC; i++)
+        outCoords[(get_global_id(0)*idC)+i] = testValue[i];
 }
 
 const int soi = sizeof(int);
