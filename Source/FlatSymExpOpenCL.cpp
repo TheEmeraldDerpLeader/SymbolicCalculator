@@ -2,7 +2,7 @@
 
 #define float float
 
-static struct ErrorHandle
+struct ErrorHandle
 {
 public:
 	cl_int errorVal = 0;
@@ -122,7 +122,7 @@ FlatKernelExecutor::FlatKernelExecutor(cl::Device& deviceRef)
 	device = deviceRef;
 	context = cl::Context(device);
 
-	comQue = cl::CommandQueue(context, device, NULL, error.errorValP());
+	comQue = cl::CommandQueue(context, device, 0, error.errorValP());
 	error.Eval();
 
 	std::vector<std::string> sources;
@@ -142,7 +142,7 @@ FlatKernelExecutor::FlatKernelExecutor(cl::Device& deviceRef)
 
 	prog = cl::Program(context, sources, error.errorValP());
 	error.Eval();
-	error = prog.build("-cl-std=CL3.0");
+	error = prog.build("");
 
 	if (error.errorVal != 0)
 	{
@@ -164,8 +164,8 @@ void FlatKernelExecutor::InitializeBuffers(int flatSize, int gradSize, int width
 
 	flatSymData = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(unsigned char)*flatSize, nullptr, error.errorValP()); error.Eval();
 	gradientData = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(unsigned char)*gradSize, nullptr, error.errorValP()); error.Eval();
-	inCoordsBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*coordsCount*idC, nullptr, error.errorValP()); error.Eval();
-	outCoordsBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*coordsCount*idC, nullptr, error.errorValP()); error.Eval();
+	testCoordsBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*coordsCount*idC, nullptr, error.errorValP()); error.Eval();
+	finalCoordsBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*coordsCount*idC, nullptr, error.errorValP()); error.Eval();
 	itersBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)*coordsCount, nullptr, error.errorValP()); error.Eval();
 	initialBuf = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(float)*idC, nullptr, error.errorValP()); error.Eval();
 	base1Buf = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(float)*idC, nullptr, error.errorValP()); error.Eval();
@@ -173,6 +173,14 @@ void FlatKernelExecutor::InitializeBuffers(int flatSize, int gradSize, int width
 	idsBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)*coordsCount, nullptr, error.errorValP()); error.Eval();
 	texBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(unsigned char)*4*coordsCount, nullptr, error.errorValP()); error.Eval();
 	
+	InitializeRootBuffer(idC, rootC);
+
+	if (checkCount != 0)
+		indexesBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)*checkCount, nullptr, error.errorValP()); error.Eval(); //checkCount of 0 causes RunFindNewRoots to skip 
+}
+
+void FlatKernelExecutor::InitializeRootBuffer(int idC, int rootC)
+{
 	if (rootC == 0)
 	{
 		rootsBuf = cl::Buffer(context, CL_MEM_READ_ONLY, 1, nullptr, error.errorValP()); error.Eval(); //having no roots is a valid input
@@ -181,12 +189,9 @@ void FlatKernelExecutor::InitializeBuffers(int flatSize, int gradSize, int width
 	{
 		rootsBuf = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(float)*rootC*idC, nullptr, error.errorValP()); error.Eval();
 	}
-
-	if (checkCount != 0)
-		indexesBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)*checkCount, nullptr, error.errorValP()); error.Eval(); //checkCount of 0 causes RunFindNewRoots to skip 
 }
 
-void FlatKernelExecutor::RunNMnTom(FlatSymExp& flat, FlatSymExp& grad, int coordsCount, float* in, float* out, int* outIters, float threshold, int maxIter)
+void FlatKernelExecutor::RunNMnTom(FlatSymExp& flat, FlatSymExp& grad, int coordsCount, float* testCoords, float* finalCoords, int* iters, float threshold, int maxIter)
 {
 	kern = cl::Kernel(prog, "NMnTom", error.errorValP());
 	error.Eval();
@@ -202,8 +207,8 @@ void FlatKernelExecutor::RunNMnTom(FlatSymExp& flat, FlatSymExp& grad, int coord
 
 	error = kern.setArg(0,flatSymData);
 	error = kern.setArg(1,gradientData);
-	error = kern.setArg(2,inCoordsBuf);
-	error = kern.setArg(3,outCoordsBuf);
+	error = kern.setArg(2,testCoordsBuf);
+	error = kern.setArg(3,finalCoordsBuf);
 	error = kern.setArg(4,itersBuf);
 	error = kern.setArg(5,idC*sizeof(float)*workGroupSize,nullptr); //testValBuf
 	error = kern.setArg(6,idC*sizeof(float)*workGroupSize,nullptr); //lastValBuf
@@ -219,7 +224,7 @@ void FlatKernelExecutor::RunNMnTom(FlatSymExp& flat, FlatSymExp& grad, int coord
 
 	error = comQue.enqueueWriteBuffer(flatSymData, false, 0, sizeof(unsigned char)*flat.size, flat.data);
 	error = comQue.enqueueWriteBuffer(gradientData, false, 0, sizeof(unsigned char)*grad.size, grad.data);
-	error = comQue.enqueueWriteBuffer(inCoordsBuf, false, 0, sizeof(float)*coordsCount*idC, in);
+	error = comQue.enqueueWriteBuffer(testCoordsBuf, false, 0, sizeof(float)*coordsCount*idC, testCoords);
 
 	int remLocal = coordsCount%workGroupSize;
 	error = comQue.enqueueNDRangeKernel(kern,0,coordsCount-remLocal, workGroupSize);
@@ -227,8 +232,8 @@ void FlatKernelExecutor::RunNMnTom(FlatSymExp& flat, FlatSymExp& grad, int coord
 		error = comQue.enqueueNDRangeKernel(kern, coordsCount-remLocal, remLocal, remLocal);
 
 
-	error = comQue.enqueueReadBuffer(outCoordsBuf, false, 0, sizeof(float)*coordsCount*idC, out);
-	error = comQue.enqueueReadBuffer(itersBuf, true, 0, sizeof(int)*coordsCount, outIters);
+	error = comQue.enqueueReadBuffer(finalCoordsBuf, false, 0, sizeof(float)*coordsCount*idC, finalCoords);
+	error = comQue.enqueueReadBuffer(itersBuf, true, 0, sizeof(int)*coordsCount, iters);
 
 	//error = comQue.enqueueNDRangeKernel(kern,0,64);	
 
@@ -237,7 +242,7 @@ void FlatKernelExecutor::RunNMnTom(FlatSymExp& flat, FlatSymExp& grad, int coord
 	//User provides FlatSym, Gradient, inCoords, outCoords, threshold, and maxCount
 }
 
-void FlatKernelExecutor::RunNMnTomRect(FlatSymExp& flat, FlatSymExp& grad, int coordsX, int coordsY, float* initial, float* base1, float* base2, float* out, int* outIters, float threshold, int maxIter)
+void FlatKernelExecutor::RunNMnTomRect(FlatSymExp& flat, FlatSymExp& grad, int coordsX, int coordsY, float* initial, float* base1, float* base2, float* finalCoords, int* iters, float threshold, int maxIter)
 {
 	kern = cl::Kernel(prog, "NMnTomRect", error.errorValP());
 	error.Eval();
@@ -256,7 +261,7 @@ void FlatKernelExecutor::RunNMnTomRect(FlatSymExp& flat, FlatSymExp& grad, int c
 	error = kern.setArg(2,initialBuf);
 	error = kern.setArg(3,base1Buf);
 	error = kern.setArg(4,base2Buf);
-	error = kern.setArg(5,outCoordsBuf);
+	error = kern.setArg(5,finalCoordsBuf);
 	error = kern.setArg(6,itersBuf);
 	error = kern.setArg(7,idC*sizeof(float)*workGroupSize,nullptr); //testValBuf
 	error = kern.setArg(8,idC*sizeof(float)*workGroupSize,nullptr); //lastValBuf
@@ -285,8 +290,8 @@ void FlatKernelExecutor::RunNMnTomRect(FlatSymExp& flat, FlatSymExp& grad, int c
 	if (remLocal != 0)
 		error = comQue.enqueueNDRangeKernel(kern, (coordsX*coordsY)-remLocal, remLocal, remLocal);
 
-	error = comQue.enqueueReadBuffer(outCoordsBuf, false, 0, sizeof(float)*coordsX*coordsY*idC, out);
-	error = comQue.enqueueReadBuffer(itersBuf, true, 0, sizeof(int)*coordsX*coordsY, outIters);
+	error = comQue.enqueueReadBuffer(finalCoordsBuf, false, 0, sizeof(float)*coordsX*coordsY*idC, finalCoords);
+	error = comQue.enqueueReadBuffer(itersBuf, true, 0, sizeof(int)*coordsX*coordsY, iters);
 	//error = comQue.enqueueNDRangeKernel(kern,0,64);	
 
 	//error = comQue.enqueueReadBuffer(testOut, true, 0, 64*sizeof(float), fOut.data()); //W
@@ -294,7 +299,7 @@ void FlatKernelExecutor::RunNMnTomRect(FlatSymExp& flat, FlatSymExp& grad, int c
 	//User provides FlatSym, Gradient, inCoords, outCoords, threshold, and maxCount
 }
 
-void FlatKernelExecutor::RunAssociateCoords(int coordsCount, int idC, int rootC, float* outCoords, float* roots, int* iters, int* ids)
+void FlatKernelExecutor::RunAssociateCoords(int coordsCount, int idC, int rootC, float* finalCoords, float* roots, int* iters, int* ids)
 {
 	kern = cl::Kernel(prog, "AssociateCoords", error.errorValP());
 	error.Eval();
@@ -305,7 +310,7 @@ void FlatKernelExecutor::RunAssociateCoords(int coordsCount, int idC, int rootC,
 	if (workGroupSize == 0 || coordsCount == 0)
 		return;
 
-	if (rootC == 0)
+	if (rootC == 0 && false)
 	{
 		for (int i = 0; i < coordsCount; i++)
 		{
@@ -319,7 +324,7 @@ void FlatKernelExecutor::RunAssociateCoords(int coordsCount, int idC, int rootC,
 		return;
 	}
 
-	error = kern.setArg(0,outCoordsBuf);
+	error = kern.setArg(0,finalCoordsBuf);
 	error = kern.setArg(1,rootsBuf);
 	error = kern.setArg(2,itersBuf);
 	error = kern.setArg(3,idsBuf);
@@ -328,7 +333,8 @@ void FlatKernelExecutor::RunAssociateCoords(int coordsCount, int idC, int rootC,
 	error = kern.setArg(6,rootC);
 
 	//error = comQue.enqueueWriteBuffer(outCoordsBuf, false, 0, sizeof(float)*idC*coordsCount, outCoords);
-	error = comQue.enqueueWriteBuffer(rootsBuf, false, 0, sizeof(float)*idC*rootC, roots);
+	if (rootC != 0)
+		error = comQue.enqueueWriteBuffer(rootsBuf, false, 0, sizeof(float)*idC*rootC, roots);
 	//error = comQue.enqueueWriteBuffer(itersBuf, false, 0, sizeof(int)*coordsCount, iters);
 
 	int remLocal = coordsCount%workGroupSize;
@@ -363,7 +369,7 @@ void FlatKernelExecutor::RunFindNewRoots(int checkCount, int* ids, int* indexes,
 	error = comQue.enqueueReadBuffer(indexesBuf, true, 0, sizeof(int)*checkCount, indexes);
 }
 
-void FlatKernelExecutor::RunColorTex(int coordsCount, int* ids, int* iters, unsigned char* tex)
+void FlatKernelExecutor::RunColorTex(int coordsCount, int* iters, unsigned char* tex)
 {
 	kern = cl::Kernel(prog, "ColorTex", error.errorValP());
 	error.Eval();
@@ -384,6 +390,208 @@ void FlatKernelExecutor::RunColorTex(int coordsCount, int* ids, int* iters, unsi
 		error = comQue.enqueueNDRangeKernel(kern, coordsCount-remLocal, remLocal, remLocal);
 
 	error = comQue.enqueueReadBuffer(texBuf, true, 0, sizeof(unsigned char)*4*coordsCount, tex);
+}
+
+void FlatKernelExecutor::RunColorTex(int coordsCount, int* iters, unsigned char* tex, int* ids)
+{
+	kern = cl::Kernel(prog, "ColorTex", error.errorValP());
+	error.Eval();
+
+	size_t workGroupSize;
+	error = kern.getWorkGroupInfo(device, CL_KERNEL_WORK_GROUP_SIZE, &workGroupSize);
+
+	if (workGroupSize == 0 || coordsCount == 0)
+		return;
+
+	error = kern.setArg(0,idsBuf);
+	error = kern.setArg(1,itersBuf);
+	error = kern.setArg(2,texBuf);
+
+	error = comQue.enqueueWriteBuffer(idsBuf, false, 0, sizeof(int)*coordsCount, ids);
+
+	int remLocal = coordsCount%workGroupSize;
+	error = comQue.enqueueNDRangeKernel(kern,0,coordsCount-remLocal, workGroupSize);
+	if (remLocal != 0)
+		error = comQue.enqueueNDRangeKernel(kern, coordsCount-remLocal, remLocal, remLocal);
+
+	error = comQue.enqueueReadBuffer(texBuf, true, 0, sizeof(unsigned char)*4*coordsCount, tex);
+}
+
+void FindAndCollectRootsCPU(int idC, int coordsCount, std::vector<float>& roots, float* outCoords, int* iters, int* ids)
+{
+	roots.clear();
+	std::vector<int> rootIndexes;
+	for (int i = 0; i < coordsCount; i++)
+	{
+		if (iters[i] == -1)
+		{
+			ids[i] = -2;
+			continue;
+		}
+		float* coord = outCoords+(idC*i);
+
+		//check if equal to roots
+		int id = -1;
+		for (int i = 0; i < roots.size()/idC; i++)
+		{
+			float dif = 0;
+			int rootIndex = rootIndexes[i];
+			for (int j = 0; j < idC; j++)
+				dif += std::abs(coord[j] - roots[(rootIndex*idC)+j]);
+			if (dif <= 0.1f)
+			{
+				id = i;
+				break;
+			}
+		}
+
+		if (id != -1)
+		{
+			ids[i] = id;
+			continue;
+		}
+		ids[i] = rootIndexes.size();
+
+		//add to roots and sort
+		rootIndexes.push_back(roots.size()/idC);
+		for (int i = 0; i < idC; i++)
+			roots.push_back(coord[i]);
+		for (int i = (roots.size()/idC)-1; i > 0; i--)
+		{
+			bool isLess = false;
+			for (int j = idC-1; j >= 0; j--)
+			{
+				// dif =      current       -    previous    
+				float dif = roots[(i*idC)+j]-roots[((i-1)*idC)+j];
+				if (j == idC-1 || dif >= 0.001f || dif <= -0.001f)
+				{
+					isLess = (dif < 0.0f);
+					break;
+				}
+			}
+			if (isLess == true)
+			{
+				for (int j = 0; j < idC; j++)
+				{
+					float hold = roots[(i*idC)+j];
+					roots[(i*idC)+j] = roots[((i-1)*idC)+j];
+					roots[((i-1)*idC)+j] = hold;
+				}
+				for (int j = 0; j < rootIndexes.size()-1; j++)
+					if (rootIndexes[j] == i-1)
+					{
+						rootIndexes[j]++;
+						break;
+					}
+				rootIndexes[rootIndexes.size()-1]--;
+			}
+			else
+				break;
+		}
+	}
+
+	//assigning to id
+	for (int i = 0; i < coordsCount; i++)
+	{
+		if (ids[i] == -2)
+			continue;
+		ids[i] = rootIndexes[ids[i]];
+	}
+}
+
+void CollectNewRoots(int idC, int checkCount, std::vector<float>& roots, float* coordsOut, int* indexes)
+{
+	std::vector<float> newRoots; newRoots.reserve(64);
+	//sort through new roots to get unique values
+	for (int i = 0; i < checkCount; i++)
+	{
+		int ind = indexes[i];
+		if (ind == -1)
+			continue;
+
+		float* coord = coordsOut+(ind*idC);
+		bool isNew = true;
+		for (int i = 0; i < newRoots.size()/idC; i++)
+		{
+			float sum = 0;
+			for (int j = 0; j < idC; j++)
+				sum += std::abs(coord[j]-newRoots[(i*idC)+j]);
+			if (sum <= 0.1f)
+			{
+				isNew = false;
+				break;
+			}
+		}
+		if (isNew)
+			for (int i = 0; i < idC; i++)
+				newRoots.push_back(coord[i]);
+	}
+	//sort new roots
+	for (int i = 0; i < newRoots.size()/idC; i++)
+	{
+		for (int j = i; j > 0; j--)
+		{
+			//if this condition is true, current root is "less" (in this case, less y, or less x if ys are close)
+			bool isLess = false;
+			for (int k = idC-1; k >= 0; k--)
+			{
+				// dif =      current       -    previous    
+				float dif = newRoots[(j*idC)+k]-newRoots[((j-1)*idC)+k];
+				if (k == idC-1 || dif >= 0.001f || dif <= -0.001f)
+				{
+					isLess = (dif < 0.0f);
+					break;
+				}
+			}
+			if (isLess)
+			{
+				for (int k = 0; k < idC; k++)
+				{
+					float hold = newRoots[(j*idC)+k];
+					newRoots[(j*idC)+k] = newRoots[((j-1)*idC)+k];
+					newRoots[((j-1)*idC)+k] = hold;
+				}
+			}
+			else
+				break;
+		}
+	}
+	{
+		int rootIndex = 0;
+		int i = 0;
+		while (rootIndex < roots.size()/idC && i < newRoots.size()/idC)
+		{
+			bool isLess = false;
+			for (int j = idC-1; j >= 0; j--)
+			{
+				// dif =      current      -     root    
+				float dif = newRoots[(i*idC)+j]-roots[(rootIndex*idC)+j];
+				if (j == idC-1 || dif >= 0.001f || dif <= -0.001f)
+				{
+					isLess = (dif < 0.0f);
+					break;
+				}
+			}
+			if (isLess)
+			{
+				for (int j = idC-1; j >= 0; j--)
+					roots.insert(roots.begin()+rootIndex, newRoots[(i*idC)+j]);
+				i++;
+			}
+			rootIndex++;
+		}
+		for (; i < newRoots.size()/idC; i++)
+		{
+			for (int j = 0; j < idC; j++)
+				roots.push_back(newRoots[(i*idC)+j]);
+		}
+	}
+	if (roots.size() > 2048*2)
+	{
+		std::cout << "Abnormally high number of roots, either root set has redundancy or root set is changing\n";
+		roots.clear();
+		//abort();
+	}
 }
 
 

@@ -18,6 +18,7 @@ void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, int* rootAssoc, unsigne
 int main()
 {
 	return SFMLMovement();
+	//return CPPBindingTest();
 	/*SymParser sp; sp.Add(0,"a1"); sp.Add(1,"a2"); sp.Add(2,"a3"); sp.Add(3,"a4"); sp.Add(4,"a5"); sp.Add(5,"b1"); sp.Add(6,"b2"); sp.Add(7,"b3"); sp.Add(8,"b4"); sp.Add(9,"b5");
 	sp.Add(10,"c1"); sp.Add(11,"c2"); sp.Add(12,"c3"); sp.Add(13,"c4"); sp.Add(14,"c5"); sp.Add(15,"d1"); sp.Add(16,"d2"); sp.Add(17,"d3"); sp.Add(18,"d4"); sp.Add(19,"d5");
 	sp.Add(20,"f1"); sp.Add(21,"f2"); sp.Add(22,"f3"); sp.Add(23,"f4"); sp.Add(24,"f5");
@@ -305,7 +306,7 @@ void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, int* rootAssoc, unsigne
 			Vector<float> eval = flat.SclEval(rendVal);
 
 			//color by final position
-			//if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (isnan(eval[0]) || isnan(eval[1]) ))
+			//if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (std::isnan(eval[0]) || std::isnan(eval[1]) ))
 			//	rootAssoc[(800*x)+y] = -1;
 			/*
 			if (rendVal[0]*rendVal[0] + rendVal[1]*rendVal[1] < 1.5f)
@@ -329,7 +330,7 @@ void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, int* rootAssoc, unsigne
 					break;
 				}
 			}
-			if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (isnan(eval[0]) || isnan(eval[1]) ))
+			if (std::abs(eval[0]) + std::abs(eval[1]) > 0.1 || (std::isnan(eval[0]) || std::isnan(eval[1]) ))
 				id = -1;
 			if (id == roots[0].size())
 			{

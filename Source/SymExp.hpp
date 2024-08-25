@@ -41,7 +41,7 @@ public:
 	Product& MultId(int id, int pow = 1);
 
 	Product(const Product& prod) { coeff = prod.coeff; ids = prod.ids; pows = prod.pows; }
-	Product& operator=(Product& prod) { coeff = prod.coeff; ids = prod.ids; pows = prod.pows; return *this; }
+	Product& operator=(const Product& prod) { coeff = prod.coeff; ids = prod.ids; pows = prod.pows; return *this; }
 	Product(Product&& prodMove) { coeff = prodMove.coeff; ids = prodMove.ids; pows = prodMove.pows; }
 	Product& operator=(Product&& prodMove) { coeff = prodMove.coeff; ids = prodMove.ids; pows = prodMove.pows; return *this; }
 	
@@ -88,7 +88,7 @@ public:
 	SymExp(Product prod) { terms.push_back(prod); }
 
 	SymExp(const SymExp& symExp) { scalar = symExp.scalar; terms = symExp.terms; }
-	SymExp& operator=(SymExp& symExp) { scalar = symExp.scalar; terms = symExp.terms; return *this; }
+	SymExp& operator=(const SymExp& symExp) { scalar = symExp.scalar; terms = symExp.terms; return *this; }
 	SymExp(SymExp&& symExpMove) { scalar = symExpMove.scalar; terms = symExpMove.terms;}
 	SymExp& operator=(SymExp&& symExpMove) { scalar = symExpMove.scalar; terms = symExpMove.terms; return *this; }
 	SymExp operator+(SymExp& symExp);
@@ -182,5 +182,10 @@ int BinSearch(std::vector<int>& vec, int val);
 int BinSearch(std::vector<int>& vec, int lower, int upper, int val);
 
 SymExp GenRandomPoly(int varCount, int maxP, float range);
+
+std::vector<SymExp> ComplexPoly(SymExp& exp);
+std::vector<SymExp> ComplexPoly(SymExp& exp, std::vector<int> ids);
+std::vector<SymExp> ComplexPoly(SymExp& exp, int iId);
+std::vector<SymExp> ComplexPoly(SymExp& exp, std::vector<int> ids, int iId);
 
 #undef float

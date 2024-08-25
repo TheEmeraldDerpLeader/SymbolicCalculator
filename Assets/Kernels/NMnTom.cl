@@ -30,6 +30,22 @@ kernel void NMnTom(global uchar* flatSym, global uchar* gradient,
         SclEval(flatSym, testValue, eval, expC, idC);
         SclEval(gradient, testValue, gradEval, idC*expC, idC);
 
+        evalSum = 0;
+        for (int i = 0; i < expC; i++)
+            evalSum += fabs(eval[i]);
+
+        int normMult = 0; //prevents floating point overflow (for positive exponent, negative exponent is unlikely and can be caused from ferror anyway)
+        for (int i = 0; i < idC; i++)
+            for (int j = 0; j < expC; j++)
+                normMult = max(normMult, ilogb(gradEval[(i*expC)+j]));
+
+        for (int i = 0; i < expC; i++)
+        {
+            eval[i] = ldexp(eval[i],-normMult);
+            for (int j = 0; j < idC; j++)
+                gradEval[(j*expC)+i] = ldexp(gradEval[(j*expC)+i],-normMult);
+        }
+
         for (int i = 0; i < idC; i++)
             lastValue[i] = testValue[i];
 
@@ -74,7 +90,7 @@ kernel void NMnTom(global uchar* flatSym, global uchar* gradient,
             for (int i = 0; i < expC; i++)
                 wDivForV[vCount] += initialW[i]*initialW[i];
             //if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
-            if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+            if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //ferr is relevant
                 vCount++;
         }
 
@@ -94,9 +110,6 @@ kernel void NMnTom(global uchar* flatSym, global uchar* gradient,
         dif = 0;
         for (int i = 0; i < idC; i++)
             dif += fabs(testValue[i]-lastValue[i]);
-        evalSum = 0;
-        for (int i = 0; i < expC; i++)
-            evalSum += fabs(eval[i]);
         
         if (dif <= threshold && evalSum <= 0.01)
         {
@@ -143,6 +156,22 @@ kernel void NMnTomRect(global uchar* flatSym, global uchar* gradient,
         SclEval(flatSym, testValue, eval, expC, idC);
         SclEval(gradient, testValue, gradEval, idC*expC, idC);
 
+        int normMult = 0; //prevents floating point overflow (for positive exponent, negative exponent is unlikely and can be caused from ferror anyway)
+        for (int i = 0; i < idC; i++)
+            for (int j = 0; j < expC; j++)
+                normMult = max(normMult, ilogb(gradEval[(i*expC)+j]));
+
+        for (int i = 0; i < expC; i++)
+        {
+            eval[i] = ldexp(eval[i],-normMult);
+            for (int j = 0; j < idC; j++)
+                gradEval[(j*expC)+i] = ldexp(gradEval[(j*expC)+i],-normMult);
+        }
+
+        //prevents floating point error when some ws are very close to 0, while other's aren't
+        float maxWDiv = -1; //will be set on first w, a bad first w is possible
+        
+        
         for (int i = 0; i < idC; i++)
             lastValue[i] = testValue[i];
 
@@ -186,8 +215,13 @@ kernel void NMnTomRect(global uchar* flatSym, global uchar* gradient,
             wDivForV[vCount] = 0;
             for (int i = 0; i < expC; i++)
                 wDivForV[vCount] += initialW[i]*initialW[i];
+
+            if (wDivForV[vCount] > maxWDiv)
+                maxWDiv = wDivForV[vCount];
+            maxWDiv = 0; //idk sometimes helps, sometimes doesn't
+
             //if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
-            if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+            if (wDivForV[vCount] > 0.0000001*maxWDiv || wDivForV[vCount] < -0.0000001*maxWDiv) //ferr is relevant
                 vCount++;
         }
 

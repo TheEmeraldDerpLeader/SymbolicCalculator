@@ -48,14 +48,14 @@ public:
 	int idKey(int no);
 	int expCount();
 	int& expIndex(int exp);
-	float expScalar(int exp);
+	//float expScalar(int exp);
 	int prodCount(int exp);
-	int prodIndex(int exp, int prod);
-	float prodCoeff(int exp, int prod);
-	int factorCount(int exp, int prod);
-	int factorIndex(int exp, int prod, int factor);
-	int factorId(int exp, int prod, int factor);
-	int factorPow(int exp, int prod, int factor);
+	//int prodIndex(int exp, int prod);
+	//float prodCoeff(int exp, int prod);
+	//int factorCount(int exp, int prod);
+	//int factorIndex(int exp, int prod, int factor);
+	//int factorId(int exp, int prod, int factor);
+	//int factorPow(int exp, int prod, int factor);
 
 	//Only implement setters for the stuff needed right now
 
@@ -66,8 +66,8 @@ public:
 	FlatSymExp(FlatSymExp&& exp);
 	FlatSymExp& operator=(FlatSymExp&& exp);
 
-	void GenerateSymExp(SymExp& out);
-	void GenerateSymExps(std::vector<SymExp>& out);
+	//void GenerateSymExp(SymExp& out);
+	//void GenerateSymExps(std::vector<SymExp>& out);
 
 	std::vector<float> SclEval(std::vector<int>& valIds, std::vector<float>& values);
 	std::vector<float> SclEval(std::vector<float>& values);
@@ -78,12 +78,12 @@ public:
 
 	FlatSymExp Gradient();
 
-	void CopyData(char* newAddress);
+	//void CopyData(char* newAddress);
 	~FlatSymExp() { if (data != nullptr) delete[] data; size = 0; capacity = 0; }
 };
 
-FlatSymExp CreateFlat(SymExp& exp);
-FlatSymExp CreateFlat(std::vector<SymExp>& exps);
+//FlatSymExp CreateFlat(SymExp& exp);
+//FlatSymExp CreateFlat(std::vector<SymExp>& exps);
 
 void FlatSymExpResetGlobals();
 

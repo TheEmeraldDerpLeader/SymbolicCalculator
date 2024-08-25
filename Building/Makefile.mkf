@@ -1,18 +1,30 @@
-WARNFLAGS := -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -Wno-misleading-indentation -Wno-sign-compare -Wno-unused-function -Wno-comment
-PNAMES := Program SymExp Helpers FlatSymExp SFMLRenderer
-PONAMES := $(foreach prog, $(PNAMES), $(prog).o)
+WARNFLAGS := -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -Wno-misleading-indentation -Wno-sign-compare -Wno-unused-function -Wno-comment -Wno-unused-value
+PNAMES := $(foreach name, Samples/SFMLProgram Program SymExp Helpers FlatSymExp FlatSymExpOpenCL SFMLRenderer, ./Source/$(name) )
+PONAMES := $(foreach prog, $(PNAMES), $(notdir $(prog).o))
 
-INCLUDES := ../include ../Depends/SFML-2.6.1/include
-LIBDIRS := ../Depends/SFML-2.6.1/liba
-LIBRARIES := sfml-graphics-s sfml-window-s sfml-system-s gdi32 winmm freetype opengl32
+INCLUDES := ./Source ../include ../Depends/SFML-2.6.1/include ../Depends/OpenCLSDK64/include
+LIBDIRS := ../Depends/SFML-2.6.1/liba ../Depends/OpenCLSDK64/lib
+LIBRARIES := OpenCL sfml-graphics-s sfml-window-s sfml-system-s gdi32 winmm freetype opengl32
 DEFINITIONS := SFML_STATIC
 
 test: $(PONAMES)
-	g++ -O3 $(WARNFLAGS) -std=c++11 -static -static-libstdc++ $(PONAMES) $(foreach dir, $(LIBDIRS), -L $(dir)) $(foreach lib, $(LIBRARIES), -l$(lib)) -o test.exe	
+	g++ -O3 $(WARNFLAGS) -std=c++14 -static -static-libstdc++ $(PONAMES) $(foreach dir, $(LIBDIRS), -L $(dir)) $(foreach lib, $(LIBRARIES), -l$(lib)) -o test.exe
+
+SELibONames := SymExp.o Helpers.o
+SymExpLib: $(SELibONames)
+	ar crs SymExp.a $(SELibONames)
+
+FSELibONames := FlatSymExp.o FlatSymExpOpenCL.o
+FlatSymExpLib: $(FSELibONames)
+	ar crs SymExp.a $(FSELibONames)
+
+SESFMLLibONames := SFMLRenderer.o
+SymExpSFMLLib: $(SESFMLLibONames)
+	ar crs SymExp.a $(SESFMLLibONames)
 
 define compileprog = 
-$(1).o: $(1).cpp
-	gcc -O3 $(WARNFLAGS) -std=c++11 -isystem . $(foreach def, $(DEFINITIONS), -D$(def)) $(foreach dir, $(INCLUDES), -I $(dir)) $(1).cpp -c -o $(1).o
+$(notdir $(1)).o: $(1).cpp
+	gcc -O3 $(WARNFLAGS) -std=c++14 -isystem . $(foreach def, $(DEFINITIONS), -D$(def)) $(foreach dir, $(INCLUDES), -I $(dir)) $(1).cpp -c -o $(notdir $(1)).o
 endef
 
 $(foreach prog, $(PNAMES), $(eval $(call compileprog,$(prog))))

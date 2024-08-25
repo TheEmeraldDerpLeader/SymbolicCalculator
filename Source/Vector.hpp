@@ -235,7 +235,7 @@ void SubEq(T1<T>& v1, T2<T>& v2)
 		v1[i] -= v2[i];
 }
 template<typename T, template<typename> typename T1>
-Vector<T> Mul(T1<T>& v1, T& s)
+Vector<T> Mul(T1<T>& v1, T s)
 {
 	int l = v1.size();
 	Vector<T> hold; hold.resize(l);
@@ -244,14 +244,14 @@ Vector<T> Mul(T1<T>& v1, T& s)
 	return hold;
 }
 template<typename T, template<typename> typename T1, template<typename> typename T2>
-void Mul(T1<T>& v1, T& s, T2<T>& out)
+void Mul(T1<T>& v1, T s, T2<T>& out)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)
 		out[i] = v1[i]*s;
 }
 template<typename T, template<typename> typename T1>
-void MulEq(T1<T>& v1, T& s)
+void MulEq(T1<T>& v1, T s)
 {
 	int l = v1.size();
 	for (int i = 0; i < l; i++)

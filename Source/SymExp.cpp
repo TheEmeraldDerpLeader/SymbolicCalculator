@@ -90,6 +90,7 @@ void Product::ClearEmpty()
         }
     }
     ids.resize(ids.size()-dif);
+    pows.resize(pows.size()-dif);
 }
 
 Product& Product::MultId(int id, int pow)
@@ -649,7 +650,7 @@ std::vector<int> GetIds(std::vector<SymExp>& exps)
 Vector2D<SymExp> Gradient(std::vector<SymExp>& exps){ std::vector<int> ids = GetIds(exps); return Gradient(exps, ids);}
 void Gradient(std::vector<SymExp>& exps, Vector2D<SymExp>& grad){ std::vector<int> ids = GetIds(exps); Gradient(exps, ids, grad);}
 
-Vector2D<SymExp> Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds) //vector of vecs, first component is the gradient for each exp
+Vector2D<SymExp> Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds) //vector of vecs, first component is the partial derivative of all exps to the first id
 {
     Vector2D<SymExp> grad(gradIds.size(), exps.size());
     for (int i = 0; i < exps.size(); i++)
@@ -661,7 +662,7 @@ Vector2D<SymExp> Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds) 
 
     return mov(grad);
 }
-void Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds, Vector2D<SymExp>& grad) //vector of vecs, first component is the gradient for each exp
+void Gradient(std::vector<SymExp>& exps, std::vector<int>& gradIds, Vector2D<SymExp>& grad) //vector of vecs, first component is the partial derivative of all exps to the first id
 {
     grad.clear();
     grad.SetDim(gradIds.size(), exps.size());
@@ -744,15 +745,23 @@ std::vector<float> NMnTom(std::vector<SymExp>& polys, std::vector<int> valIds, s
     Vector2D<SymExp>& grad = _grad2D; grad = Gradient(polys, valIds);
     
     int count = 0;
+    float evalSum = 2;
     Vector2D<float>& gradEval = _gradEval2D; gradEval.SetDim(initial.size(), polys.size());
     Vector2D<float>& vBasis = _vBasis; vBasis.SetDim(initial.size(),initial.size());
     Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(initial.size(),polys.size());
     Vector<float>& wDivForV = _wDivForV; wDivForV.resize(initial.size());
     Vector<float>& eval = _eval; eval.resize(polys.size());
-    while (dif > threshold && dif < 250 && count < 80)
+    while ((dif > threshold || evalSum > 0.0001f) && dif < 250 && count < 80)
     {
         eval = SclEvalVec(polys, valIds, testValue);
         gradEval = SclEvalVec2D(grad,valIds,testValue);
+
+        evalSum = 0;
+        for (int i = 0; i < polys.size(); i++)
+            evalSum += glm::abs(eval[i]);
+
+        //prevents floating point error when some ws are very close to 0, while other's aren't
+        float maxWDiv = -1; //will be set on first w, a bad first w is possible
 
         lastValue = testValue;
 
@@ -791,8 +800,12 @@ std::vector<float> NMnTom(std::vector<SymExp>& polys, std::vector<int> valIds, s
             }
             
             wDivForV[vCount] = Dot(initialW, initialW);
+
+            if (wDivForV[vCount] > maxWDiv)
+                maxWDiv = wDivForV[vCount];
+
             //if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
-            if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+            if (wDivForV[vCount] > 0.000001f*maxWDiv || wDivForV[vCount] < -0.000001f*maxWDiv) //maybe not ferr, but approaching a 0 derivative causes problems
                 vCount++;
         }
 
@@ -813,7 +826,6 @@ std::vector<float> NMnTom(std::vector<SymExp>& polys, std::vector<int> valIds, s
 
         count++;
     }
-
     return testValue;
 }
 
@@ -1195,6 +1207,195 @@ SymExp GenRandomPoly(int varCount, int maxP, float range)
     }
     return hold;
 
+}
+
+std::vector<SymExp> ComplexPoly(SymExp& exp)
+{
+    std::vector<int> ids = exp.GetIds();
+    return ComplexPoly(exp, ids);
+}
+
+std::vector<SymExp> ComplexPoly(SymExp& exp, std::vector<int> ids)
+{
+    std::vector<SymExp> hold; hold.resize(2);
+    std::vector<int> newIds; newIds.resize(ids.size());
+    int newId = 0;
+    int newIndex = 0;
+    int iId = 0;
+    for (int i = 0; i < ids.size() && newIndex < ids.size()+1;)
+    {
+        if (ids[i] > newId)
+        {
+            if (newIndex == ids.size())
+                iId = newId;
+            else
+                newIds[newIndex] = newId;
+            newIndex++;
+        }
+        else
+            i++;
+        newId++;
+    }
+    for (; newIndex < ids.size()+1; newIndex++)
+    {
+        if (newIndex == ids.size())
+            iId = newId;
+        else
+            newIds[newIndex] = newId;
+        newId++;
+    }
+    SymExpTable table;
+    SymExp sub; sub.terms.push_back(Product(1, 0, 1)); sub.terms.push_back(Product(1, 0, 1)); sub.terms[1].MultId(iId, 1); //sub = x_r + x_i*i
+    for (int i = 0; i < ids.size(); i++)
+    {
+        sub.terms[0].ids[0] = ids[i];
+        sub.terms[1].ids[0] = newIds[i];
+        table.Add(ids[i], sub);
+    }
+    hold[0] = exp.Eval(table);
+    for (int i = hold[0].terms.size()-1; i >= 0; i--)
+    {
+        Product& term = hold[0].terms[i];
+        int iIndex = -1;
+        for (int i = 0; i < term.ids.size(); i++)
+        {
+            if (term.ids[i] == iId)
+            {
+                iIndex = i;
+                break;
+            }
+        }
+        if (iIndex == -1)
+            continue;
+        if (term.pows[iIndex] % 4 == 0)
+        {
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+        }
+        else if (term.pows[iIndex] % 4 == 2)
+        {
+            term.coeff *= -1;
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+        }
+        else if (term.pows[iIndex] % 4 == 1)
+        {
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+            hold[1].terms.push_back(mov(term));
+            hold[0].terms.erase(hold[0].terms.begin()+i);
+        }
+        else
+        {
+            term.coeff *= -1;
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+            hold[1].terms.push_back(mov(term));
+            hold[0].terms.erase(hold[0].terms.begin()+i);
+        }
+    }
+    return hold;
+}
+
+std::vector<SymExp> ComplexPoly(SymExp& exp, int iId)
+{
+    std::vector<int> ids = exp.GetIds();
+    int ind = BinSearch(ids, iId);
+    if (ind != ids.size())
+        ids.erase(ids.begin()+ind);
+    return ComplexPoly(exp, ids, iId);
+}
+
+std::vector<SymExp> ComplexPoly(SymExp& exp, std::vector<int> ids, int iId)
+{
+    std::vector<SymExp> hold; hold.resize(2);
+    std::vector<int> newIds; newIds.resize(ids.size());
+    int newId = 0;
+    int newIndex = 0;
+    for (int i = 0; i < ids.size() && newIndex < ids.size();)
+    {
+        if (ids[i] > newId)
+        {
+            if (newId == iId)
+            {
+                newId++;
+                continue;
+            }
+            newIds[newIndex] = newId;
+            newIndex++;
+        }
+        else
+            i++;
+        newId++;
+    }
+    for (; newIndex < ids.size(); newIndex++)
+    {
+        if (newId == iId)
+            newId++;
+        
+        newIds[newIndex] = newId;
+        newId++;
+    }
+    SymExpTable table;
+    SymExp sub; sub.terms.push_back(Product(1, 0, 1)); sub.terms.push_back(Product(1, 0, 1)); sub.terms[1].MultId(iId, 1); //sub = x_r + x_i*i
+    for (int i = 0; i < ids.size(); i++)
+    {
+        sub.terms[0].ids[0] = ids[i];
+        if (newIds[i] < iId)
+        {
+            sub.terms[1].ids[0] = newIds[i];
+            sub.terms[1].ids[1] = iId;
+        }
+        else
+        {
+            sub.terms[1].ids[0] = iId;
+            sub.terms[1].ids[1] = newIds[i];
+        }
+        table.Add(ids[i], sub);
+    }
+    hold[0] = exp.Eval(table);
+    for (int i = hold[0].terms.size()-1; i >= 0; i--)
+    {
+        Product& term = hold[0].terms[i];
+        int iIndex = -1;
+        for (int i = 0; i < term.ids.size(); i++)
+        {
+            if (term.ids[i] == iId)
+            {
+                iIndex = i;
+                break;
+            }
+        }
+        if (iIndex == -1)
+            continue;
+        if (term.pows[iIndex] % 4 == 0)
+        {
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+        }
+        else if (term.pows[iIndex] % 4 == 2)
+        {
+            term.coeff *= -1;
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+        }
+        else if (term.pows[iIndex] % 4 == 1)
+        {
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+            hold[1].terms.push_back(mov(term));
+            hold[0].terms.erase(hold[0].terms.begin()+i);
+        }
+        else
+        {
+            term.coeff *= -1;
+            term.ids.erase(term.ids.begin()+iIndex);
+            term.pows.erase(term.pows.begin()+iIndex);
+            hold[1].terms.push_back(mov(term));
+            hold[0].terms.erase(hold[0].terms.begin()+i);
+        }
+    }
+    return hold;
 }
 
 #undef float

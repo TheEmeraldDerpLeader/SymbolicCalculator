@@ -10,15 +10,16 @@
 
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 //To Do:
-//Fixup var names for this file and FlatSymExpOpenCL
-//Investigate static on redundant example
-//Test cross sections of three var functions
-//Makefile, building, and api
+//Test cross sections of three var functions (done, kinda meh)
+//makefile, building
 
 
-static void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, unsigned char* rootTex, FlatKernelExecutor& fke, int width, int height, float centerX, float centerY, float scale, std::vector<float>& roots);
+static void FractalGenImage2D(FlatSymExp& flat, FlatSymExp& grad, unsigned char* tex, FlatKernelExecutor& fke, int width, int height, float centerX, float centerY, float scale, std::vector<float>& roots);
+static void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, unsigned char* tex, FlatKernelExecutor& fke, int width, int height, std::vector<float>& center, std::vector<float>& base1, std::vector<float>& base2, float scale, std::vector<float>& roots);
+static void FractalGenImageChangingRoots(FlatSymExp& flat, FlatSymExp& grad, unsigned char* tex, FlatKernelExecutor& fke, int width, int height, std::vector<float>& center, std::vector<float>& base1, std::vector<float>& base2, float scale, std::vector<float>& roots);
 
 static void SetTex(unsigned char* tex, int width, int height);
 
@@ -69,12 +70,11 @@ int SFMLMovement()
 	rendExp[1].scalar += 0.05;*/
 
 	//simple redundant, needs custom id associating
-	rendExp.push_back(SymExp(1)); rendExp.push_back(SymExp(0)); 
-	hold = SymExp(-1); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
-	hold = SymExp(-4); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1.5f, 1, 2)); rendExp[0] *= hold;
-	hold = SymExp(-9); hold.terms.push_back(Product(1.5f, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
-	hold = SymExp(-32); hold.terms.push_back(Product(1, 0, 3)); hold.terms.push_back(Product(2.5f, 1, 2)); rendExp[0] *= hold;
-
+	//rendExp.push_back(SymExp(1)); rendExp.push_back(SymExp(0)); 
+	//hold = SymExp(-1); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
+	//hold = SymExp(-4); hold.terms.push_back(Product(1, 0, 2)); hold.terms.push_back(Product(1.5f, 1, 2)); rendExp[0] *= hold;
+	//hold = SymExp(-9); hold.terms.push_back(Product(1.5f, 0, 2)); hold.terms.push_back(Product(1, 1, 2)); rendExp[0] *= hold;
+	//hold = SymExp(-32); hold.terms.push_back(Product(1, 0, 3)); hold.terms.push_back(Product(2.5f, 1, 2)); rendExp[0] *= hold;
 
 	//rendExp.push_back(SymExp(-1)); rendExp[0].terms.push_back(Product(1,0)); rendExp[0].terms.push_back(Product(1,1));
 	//rendExp.push_back(SymExp(0));
@@ -82,19 +82,24 @@ int SFMLMovement()
 	//Random
 	//rendExp.push_back(SymExp(GenRandomPoly(2, 4, 4))); rendExp.push_back(GenRandomPoly(2, 4, 4));
 	//rendExp[0].scalar = 0; rendExp[1].scalar = 0;
+	//Random Triple
+	//rendExp.push_back(SymExp(GenRandomPoly(3, 2, 4))); rendExp.push_back(GenRandomPoly(2, 2, 4)); rendExp.push_back(GenRandomPoly(2, 2, 4));
+	//rendExp[0].scalar = 0; rendExp[1].scalar = 0; rendExp[2].scalar = 0;
 
 	//NM
 	//rendExp.push_back(SymExp(-1)); rendExp.push_back(SymExp(0));
 	//rendExp[0].terms.push_back(Product(1, 0, 3));	rendExp[0].terms.push_back(Product(-3, 0, 1)); rendExp[0].terms[1].MultId(1,2);
 	//rendExp[1].terms.push_back(Product(-1, 1, 3)); rendExp[1].terms.push_back(Product(3, 0, 2)); rendExp[1].terms[1].MultId(1,1);
 
+	//Alt NM
+	SymExp testExpNM(-1);
+	testExpNM.terms.push_back(Product(1, 0, 3)); testExpNM.terms.push_back(Product(0, 0, 2)); testExpNM.terms.push_back(Product(0, 0, 1)); //testExpNM.terms[2].MultId(2, 1);
+	rendExp = ComplexPoly(testExpNM,2);
+
 	unsigned char* rootTex = new unsigned char[width*height*4];
 
 	std::cout << rendExp[0].ToString() << '\n';
 	std::cout << rendExp[1].ToString() << '\n';
-
-	//Start using ExecuteRect
-	//Finish RootOrganizing.cl
 
 	FlatSymExp rendFlat(rendExp);
 	FlatSymExp rendGradFlat(rendFlat.Gradient());
@@ -106,20 +111,42 @@ int SFMLMovement()
 
 	std::vector<float> roots;
 
-	//Kernel for not using coords input
-	//Kernel for associating coords out to given roots
-
-	//Kernel for getting roots from coords in? (probs for real time, tho would not sure how to parallelize)
-	//Could have work item size == global item size, out for each work item which is the root found, each work item goes through coords until it finds one that isn't already a root, if it doesn't find any new\
-	coords it returns nan or sets a bool out buffer (do every few frame, probs not computationally expensive, compound results each frame) probably works fine
-
-	float x = 0;
-	float y = 0;
+	std::vector<float> center; center.push_back(0); center.push_back(0); center.push_back(0);
+	std::vector<float> base1; base1.push_back(1); base1.push_back(0); base1.push_back(0);
+	std::vector<float> base2; base2.push_back(0); base2.push_back(1); base2.push_back(0);
 	float scale = 4.0f;
 
+	sf::Text fpsText;
+	fpsText.setPosition(20, 750);
+	fpsText.setCharacterSize(30);
+	fpsText.setString("");
+
+	sf::Font font;
+	font.loadFromFile("Assets\\Fonts\\LeagueMono-2.300\\static\\TTF\\LeagueMono-Regular.ttf");
+	fpsText.setFont(font);
+
+	sf::Clock fpsClock;
+	fpsClock.restart();
+
+	float animTime = 0;
 
     while (window.isOpen())
     {
+		sf::Time dif = fpsClock.getElapsedTime();
+		if (dif != sf::Time::Zero)
+			fpsText.setString(std::to_string(int(1.0f/dif.asSeconds())));
+		fpsClock.restart();
+		animTime += dif.asSeconds();
+		if (animTime > 10)
+			animTime -= 10;
+
+		testExpNM.terms[2].coeff = 0.01f*(9.57f-30.0f);
+		rendExp = ComplexPoly(testExpNM);
+		rendExp[1].terms[1].coeff = -3.0f+(animTime-5.0f)*-0.18f;
+		rendFlat = FlatSymExp(rendExp);
+		rendGradFlat = rendFlat.Gradient();
+
+
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -127,36 +154,49 @@ int SFMLMovement()
                 window.close();
         }
 
-		FractalGenImage(rendFlat, rendGradFlat, rootTex, fke, width, height, x, y, scale, roots);
+		//FractalGenImage2D(rendFlat, rendGradFlat, rootTex, fke, width, height, center[0], center[1], scale, roots);
+		//FractalGenImage(rendFlat, rendGradFlat, rootTex, fke, width, height, center, base1, base2, scale, roots);
+		FractalGenImageChangingRoots(rendFlat, rendGradFlat, rootTex, fke, width, height, center, base1, base2, scale, roots);
+
+
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-			y += 0.05f*scale;
+			center[1] += 0.05f*scale;
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-			y -= 0.05f*scale;
+			center[1] -= 0.05f*scale;
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-			x -= 0.05f*scale;
+			center[0] -= 0.05f*scale;
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-			x += 0.05f*scale;
+			center[0] += 0.05f*scale;
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
 			scale *= 1.1f;
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
 			scale /= 1.1f;
+		if (center.size() > 2)
+		{
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num1))
+				center[2] -= 0.05f*scale;
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num3))
+				center[2] += 0.05f*scale;
+		}
 		
 		SetTex(rootTex, width, height);
 
         window.clear();
         window.draw(drawRectangle);
+		window.draw(fpsText);
         window.display();
     }
 
 	return 0;
 }
 
-static void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, unsigned char* rootTex, FlatKernelExecutor& fke, int width, int height, float centerX, float centerY, float scale, std::vector<float>& roots)
+thread_local std::vector<float> coordsOut;
+thread_local std::vector<int> iters;
+thread_local std::vector<int> ids;
+thread_local std::vector<int> indexes;
+
+static void FractalGenImage2D(FlatSymExp& flat, FlatSymExp& grad, unsigned char* tex, FlatKernelExecutor& fke, int width, int height, float centerX, float centerY, float scale, std::vector<float>& roots)
 {
-	thread_local std::vector<float> coordsOut;
-	thread_local std::vector<int> iters;
-	thread_local std::vector<int> ids;
-	thread_local std::vector<int> indexes;
 	coordsOut.resize(width*height*2);
 	iters.resize(width*height);
 	ids.resize(width*height);
@@ -166,84 +206,22 @@ static void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, unsigned char* r
 	std::vector<float> base1; base1.push_back(2*scale*(1.0f/(float)height)); base1.push_back(0);
 	std::vector<float> base2; base2.push_back(0); base2.push_back(2*scale*(1.0f/(float)height));
 
-	fke.InitializeBuffers(flat.size, grad.size, width, height, 2, roots.size()/2, width);
-
-	fke.RunNMnTomRect(flat, grad, width, height, initial.data(), base1.data(), base2.data(), coordsOut.data(), iters.data(), 0.00001, 4);
-	
-	
-	/*
 	//getting ids using convergence points
+	fke.InitializeBuffers(flat.size, grad.size, width, height, 2, roots.size()/2, width);
+	fke.RunNMnTomRect(flat, grad, width, height, initial.data(), base1.data(), base2.data(), coordsOut.data(), iters.data(), 0.00001, 60);	
 	fke.RunAssociateCoords(width*height, flat.idCount(), roots.size()/2, coordsOut.data(), roots.data(), iters.data(), ids.data());
 	fke.RunFindNewRoots(width, ids.data(), indexes.data(), height, height);
-	std::vector<float> newRoots; newRoots.reserve(64);
-	//sort through new roots to get unique values
-	for (int i = 0; i < width; i++)
-	{
-		int ind = indexes[i];
-		if (ind == -1)
-			continue;
-		float f1 = coordsOut[(ind*2)+0];
-		float f2 = coordsOut[(ind*2)+1];
-		bool isNew = true;
-		for (int j = 0; j < newRoots.size()/2; j++)
-		{
-			if (std::abs(f1-newRoots[(j*2)+0]) + std::abs(f2-newRoots[(j*2)+1]) <= 0.1f)
-			{
-				isNew = false;
-				break;
-			}
-		}
-		if (isNew)
-		{
-			newRoots.push_back(f1);
-			newRoots.push_back(f2);
-		}
-	}
-	//sort new roots
-	for (int i = 0; i < newRoots.size()/2; i++)
-	{
-		for (int j = i-1; j >= 0; j--)
-		{
-			int jm = j+1;
-			//if this condition is true, current root is "less" (in this case, less y, or less x if ys are same)
-			if (newRoots[(jm*2)+1] < newRoots[(j*2)+1] || (std::abs(newRoots[(jm*2)+1] - newRoots[(j*2)+1]) < 0.01f && newRoots[(jm*2)+0] < newRoots[(j*2)+0]))
-			{
-				float hold = newRoots[(jm*2)+0];
-				newRoots[(jm*2)+0] = newRoots[(j*2)+0];
-				newRoots[(j*2)+0] = hold;
-				hold = newRoots[(jm*2)+1];
-				newRoots[(jm*2)+1] = newRoots[(j*2)+1];
-				newRoots[(j*2)+1] = hold;
-			}
-		}
-	}
-	{
-		int rootIndex = 0;
-		int i = 0;
-		while (rootIndex < roots.size()/2 && i < newRoots.size()/2)
-		{
-			if (newRoots[(i*2)+1] < roots[(rootIndex*2)+1] || (std::abs(newRoots[(i*2)+1] - roots[(rootIndex*2)+1]) < 0.01f && newRoots[(i*2)+0] < roots[(rootIndex*2)+0]))
-			{
-				roots.insert(roots.begin()+rootIndex, newRoots[(i*2)+1]);
-				roots.insert(roots.begin()+rootIndex, newRoots[(i*2)+0]);
-				i++;
-			}
-			rootIndex++;
-		}
-		for (; i < newRoots.size()/2; i++)
-		{
-			roots.push_back(newRoots[(i*2)+0]);
-			roots.push_back(newRoots[(i*2)+1]);
-		}
-	}
-	if (roots.size() > 1024*2)
-	{
-		std::cout << "Abnormally high number of roots, likely fork bomb\n";
-		roots.clear();
-		abort();
-	}
-	*/
+	CollectNewRoots(2, indexes.size(), roots, coordsOut.data(), indexes.data());
+	fke.RunColorTex(width*height, iters.data(), tex);
 	
+	//getting ids from potentially changing roots (use for animations) uncomment second RunAssociateCoords and initBuffers
+	//fke.InitializeBuffers(flat.size, grad.size, width, height, 2, roots.size()/2, width*height);
+	//fke.RunNMnTomRect(flat, grad, width, height, initial.data(), base1.data(), base2.data(), coordsOut.data(), iters.data(), 0.00001, 60);	
+	//indexes.resize(width*height);
+	//FindAndCollectRootsCPU(2, coordsOut.size()/2, roots, coordsOut.data(), iters.data(), ids.data());
+	//fke.RunColorTex(width*height, iters.data(), tex, ids.data());
+	
+	/*
 	//Id association for redundant example
 	for (int i = 0; i < width*height; i++)
 	{
@@ -258,38 +236,62 @@ static void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, unsigned char* r
 			ids[i] = 3;
 	}
 	fke.comQue.enqueueWriteBuffer(fke.idsBuf, false, 0, sizeof(int)*width*height, ids.data());
-	
+	fke.RunColorTex(width*height, iters.data(), tex);
+	*/
+}
 
-	//coloring
-	fke.RunColorTex(width*height, ids.data(), iters.data(), rootTex);
-	/*for (int y = 0; y < height; y++)
+static void FractalGenImage(FlatSymExp& flat, FlatSymExp& grad, unsigned char* tex, FlatKernelExecutor& fke, int width, int height, std::vector<float>& center, std::vector<float>& base1, std::vector<float>& base2, float scale, std::vector<float>& roots)
+{
+	int idC = flat.idCount();
+
+	coordsOut.resize(width*height*idC);
+	iters.resize(width*height);
+	ids.resize(width*height);
+	indexes.resize(width);
+
+	std::vector<float> initial; initial.resize(idC);
+	std::vector<float> mBase1; mBase1.resize(idC);
+	std::vector<float> mBase2; mBase2.resize(idC);
+	for (int i = 0; i < idC; i++)
 	{
-		for (int x = 0; x < width; x++)
-		{
-			switch (ids[(height*x)+(height-1-y)])
-			{
-			default: rootTex[(width*4*y)+(4*x)+0] = 128; rootTex[(width*4*y)+(4*x)+1] = 128; rootTex[(width*4*y)+(4*x)+2] = 128; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 0: rootTex[(width*4*y)+(4*x)+0] = 255; rootTex[(width*4*y)+(4*x)+1] = 0; rootTex[(width*4*y)+(4*x)+2] = 0; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 1: rootTex[(width*4*y)+(4*x)+0] = 0; rootTex[(width*4*y)+(4*x)+1] = 255; rootTex[(width*4*y)+(4*x)+2] = 0; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 2: rootTex[(width*4*y)+(4*x)+0] = 0; rootTex[(width*4*y)+(4*x)+1] = 0; rootTex[(width*4*y)+(4*x)+2] = 255; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 3: rootTex[(width*4*y)+(4*x)+0] = 0; rootTex[(width*4*y)+(4*x)+1] = 255; rootTex[(width*4*y)+(4*x)+2] = 255; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 4: rootTex[(width*4*y)+(4*x)+0] = 255; rootTex[(width*4*y)+(4*x)+1] = 0; rootTex[(width*4*y)+(4*x)+2] = 255; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 5: rootTex[(width*4*y)+(4*x)+0] = 255; rootTex[(width*4*y)+(4*x)+1] = 255; rootTex[(width*4*y)+(4*x)+2] = 0; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 6: rootTex[(width*4*y)+(4*x)+0] = 128; rootTex[(width*4*y)+(4*x)+1] = 0; rootTex[(width*4*y)+(4*x)+2] = 0; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 7: rootTex[(width*4*y)+(4*x)+0] = 0; rootTex[(width*4*y)+(4*x)+1] = 128; rootTex[(width*4*y)+(4*x)+2] = 0; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 8: rootTex[(width*4*y)+(4*x)+0] = 0; rootTex[(width*4*y)+(4*x)+1] = 0; rootTex[(width*4*y)+(4*x)+2] = 128; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 9: rootTex[(width*4*y)+(4*x)+0] = 0; rootTex[(width*4*y)+(4*x)+1] = 128; rootTex[(width*4*y)+(4*x)+2] = 128; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 10: rootTex[(width*4*y)+(4*x)+0] = 128; rootTex[(width*4*y)+(4*x)+1] = 0; rootTex[(width*4*y)+(4*x)+2] = 128; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 11: rootTex[(width*4*y)+(4*x)+0] = 128; rootTex[(width*4*y)+(4*x)+1] = 128; rootTex[(width*4*y)+(4*x)+2] = 0; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 12: rootTex[(width*4*y)+(4*x)+0] = 180; rootTex[(width*4*y)+(4*x)+1] = 60; rootTex[(width*4*y)+(4*x)+2] = 60; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 13: rootTex[(width*4*y)+(4*x)+0] = 60; rootTex[(width*4*y)+(4*x)+1] = 180; rootTex[(width*4*y)+(4*x)+2] = 60; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 14: rootTex[(width*4*y)+(4*x)+0] = 60; rootTex[(width*4*y)+(4*x)+1] = 60; rootTex[(width*4*y)+(4*x)+2] = 180; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 15: rootTex[(width*4*y)+(4*x)+0] = 60; rootTex[(width*4*y)+(4*x)+1] = 180; rootTex[(width*4*y)+(4*x)+2] = 180; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 16: rootTex[(width*4*y)+(4*x)+0] = 180; rootTex[(width*4*y)+(4*x)+1] = 60; rootTex[(width*4*y)+(4*x)+2] = 180; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			case 17: rootTex[(width*4*y)+(4*x)+0] = 180; rootTex[(width*4*y)+(4*x)+1] = 180; rootTex[(width*4*y)+(4*x)+2] = 60; rootTex[(width*4*y)+(4*x)+3] = 255; break;
-			}
-		}
-	}*/
+		initial[i] = center[i] - scale*((base1[i]*float(width)/float(height)) + base2[i]);
+		mBase1[i] = 2.0f*scale*base1[i]/float(height);
+		mBase2[i] = 2.0f*scale*base2[i]/float(width);
+	}
+
+	fke.InitializeBuffers(flat.size, grad.size, width, height, idC, roots.size()/idC, width);
+	fke.RunNMnTomRect(flat, grad, width, height, initial.data(), mBase1.data(), mBase2.data(), coordsOut.data(), iters.data(), 0.00001, 60);	
+	fke.RunAssociateCoords(width*height, flat.idCount(), roots.size()/idC, coordsOut.data(), roots.data(), iters.data(), ids.data());
+	fke.RunFindNewRoots(width, ids.data(), indexes.data(), height, height);
+	CollectNewRoots(idC, indexes.size(), roots, coordsOut.data(), indexes.data());
+	fke.RunColorTex(width*height, iters.data(), tex);
+}
+static void FractalGenImageChangingRoots(FlatSymExp& flat, FlatSymExp& grad, unsigned char* tex, FlatKernelExecutor& fke, int width, int height, std::vector<float>& center, std::vector<float>& base1, std::vector<float>& base2, float scale, std::vector<float>& roots)
+{
+	int idC = flat.idCount();
+
+	coordsOut.resize(width*height*idC);
+	iters.resize(width*height);
+	ids.resize(width*height);
+	indexes.resize(width*height);
+	roots.clear();
+
+	std::vector<float> initial; initial.resize(idC);
+	std::vector<float> mBase1; mBase1.resize(idC);
+	std::vector<float> mBase2; mBase2.resize(idC);
+	for (int i = 0; i < idC; i++)
+	{
+		initial[i] = center[i] - scale*((base1[i]*float(width)/float(height)) + base2[i]);
+		mBase1[i] = 2.0f*scale*base1[i]/float(height);
+		mBase2[i] = 2.0f*scale*base2[i]/float(width);
+	}
+
+	fke.InitializeBuffers(flat.size, grad.size, width, height, idC, roots.size()/idC, width*height);
+	fke.RunNMnTomRect(flat, grad, width, height, initial.data(), mBase1.data(), mBase2.data(), coordsOut.data(), iters.data(), 0.00001, 60);	
+	FindAndCollectRootsCPU(2, width*height, roots, coordsOut.data(), iters.data(), ids.data());
+	fke.RunColorTex(width*height, iters.data(), tex, ids.data());
+
+	roots.clear();
 }
 
 static void SetTex(unsigned char* tex, int width, int height)

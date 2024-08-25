@@ -187,6 +187,11 @@ int& FlatSymExp::expIndex(int exp)
 	return iAt(index + (soi*exp));
 }
 
+int FlatSymExp::prodCount(int exp)
+{
+	return iAt(expIndex(exp)+sof);
+}
+
 std::vector<float> FlatSymExp::SclEval(std::vector<int>& valIds, std::vector<float>& values)
 {
 	std::vector<float> hold;
@@ -348,17 +353,22 @@ std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vec
 	float dif = threshold+1;
 
 	int count = 0;
+	float evalSum = 1;
 	Vector2D<float>& gradEval = _gradEval; gradEval.SetDim(idC, expC);
 	Vector2D<float>& vBasis = _vBasis; vBasis.SetDim(idC,idC);
 	Vector2D<float>& wBasis = _wBasis; wBasis.SetDim(expC,expC);
 	Vector<float>& wDivForV = _wDivForV; wDivForV.resize(idC);
 	Vector<float>& eval = _eval; eval.resize(expC);
-	while (dif > threshold && dif < 2500000 && count < 80)
+	while ((dif > threshold || evalSum > 0.1f) && dif < 2500000 && count < 80)
 	{
 		eval = SclEval(testValue);
 		gradEval = gradient.SclEval(testValue);
 
 		lastValue = testValue;
+
+		evalSum = 0;
+		for (int i = 0; i < expC; i++)
+			evalSum += glm::abs(eval[i]);
 
 		//transform gradEval into new basis with ortho wi
 		int vCount = 0;
@@ -396,7 +406,7 @@ std::vector<float> FlatSymExp::NewtonsMethodSolve(FlatSymExp& gradient, std::vec
 
 			wDivForV[vCount] = Dot(initialW, initialW);
 			//if wDivForV = 0, then vi and wi would be 0, so this vector should be skipped 
-			if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //dunno if ferr is relevant for this kinda calculation
+			if (wDivForV[vCount] > 0 || wDivForV[vCount] < -0) //ferr is relevant
 				vCount++;
 		}
 

@@ -65,8 +65,13 @@ kernel void ColorTex(
         outTex[(glob*4)+0] = 255; outTex[(glob*4)+1] = 255; outTex[(glob*4)+2] = 255; outTex[(glob*4)+3] = 255; return;
     }
 
-    float iterDif = 1.0-(inIters[glob]/60.0);
-
+    float iterDif = 0;
+    //iterDif = 1.0-(inIters[glob]/60.0);
+    //iterDif = 0.05+0.95*(inIters[glob]/60.0);
+    if (inIters[glob] < 31)
+        iterDif = 0.05+0.95*(inIters[glob]/30.0);
+    else
+        iterDif = 1.0-((inIters[glob]-30)/30.0);
     switch (id)
     {
         default: outTex[(glob*4)+0] = 0; outTex[(glob*4)+1] = 0; outTex[(glob*4)+2] = 0; outTex[(glob*4)+3] = 255; break;
